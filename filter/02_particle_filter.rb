@@ -75,21 +75,40 @@ class ParticleFilter
   end
  end
 =end 
+ # x_t0： 一つ前の予測値
+ # xm_t1： 一つ先のモデル値
+ # x_pre： 一つ先の予測値
+ # solar： 現在の実測値
+ # t1: 現在時刻
+ # solar： 現在時刻の発電量
  def transition x_t0, t1, solar
   w = @rbm.generate_rand_normval @mean, @sigma, 1
-  x_t1 = @model_data.size - 1 > t1+1 ? @model_data[t1+1] : @model_data[t1]
+  xm_t1 = @model_data.size - 1 > t1+1 ? @model_data[t1+1] : @model_data[t1]
   if @pre_solars.size > 1
-   alpha = 0.0
-   (1..@pre_solars.size-1).each{|index|
-    alpha += (@pre_solars[index] - @pre_solars[index-1])
-   }
+   #alpha = 0.0
+   #(1..2).each{|index|
+   # alpha += (xm_t1 - @pre_solars[@pre_solars.size - index])
+   #}
+   #alpha /= 2.0
    alpha = @pre_solars[t1-2]
    #p alpha if t1 == 8
    #p "#{alpha}:#{(x_t1 * 1.4 - x_t0 * 1.0)}" if t1 == 12
-   x_pre = @current_pre + (solar - x_t0) + ((x_t1 * 1.2  - x_t0 * 1.0) + (x_t1 * 1.2 - alpha * 1.0) )/2.0+  w[0]
+   #x_pre = solar + ((xm_t1 * 1.2  - x_t0 * 1.0) + (xm_t1 * 1.2 - alpha * 1.0))/2.0 + w[0]
+   #x_pre = @current_pre + (solar * 1.2 - x_t0) + ((xm_t1 * 1.2  - x_t0 * 1.1) + (xm_t1 * 1.2 - alpha * 1.1) )/2.0+  w[0]
+   #x_pre = @current_pre + (solar * 1.2 - x_t0) + ((xm_t1 * 1.2  - x_t0 * 1.1)).to_f +  w[0]
+   #a = (@model_data[t1-1] - @model_data[t1-2]).abs
+   #b = (@pre_solars[t1-1] - @pre_solars[t1-2]).abs 
+   #ratio = a > 0 ? (a > b ? a / b : b / a): 1.0
+   #ratio = ratio > 2.0 ? 2.0 : ratio
+   ratio = 2.0
+   #x_pre = @current_pre + ((solar * 1.15 - @pre_solars[t1].to_f) + alpha) + w[0]
+   x_pre = @current_pre + ((solar * ratio - x_t0.to_f) + (xm_t1 - x_t0))/2.0 + w[0]
+   #x_pre = @current_pre + ((solar  - @pre_solars[t1].to_f) + (xm_t1 - @pre_solars[t1-1].to_f))/2.0 + w[0]
+   #x_pre = @current_pre + (solar * 1.35 - x_t0) +  w[0]
+
    return x_pre
   else
-   x_pre = @current_pre +  (x_t1 * 1.2  - x_t0 * 1.0) +  w[0]
+   x_pre = @current_pre +  (xm_t1 * 1.2  - x_t0 * 1.0) +  w[0]
    return x_pre
   end
  end
@@ -213,6 +232,7 @@ class ParticleFilter
 
  def next_value_predict x_t0, time
   x_t1 = self.transition @current_pre, time, x_t0
+  #x_t1 = time > 0 ? self.transition(@pre_solars[time-1], time, x_t0) : self.transition( @current_pre, time, x_t0)
   y = self.observe x_t1
   ws = Array.new(@particles_number,1.0)
   @current_ps, ws = self.pf_sir_one_step @current_ps, ws, y, x_t0, time
