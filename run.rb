@@ -5,8 +5,6 @@ require "#{DIRROOT}/filter/02_particle_filter"
 
 #: 初期設定
 
-#:
-
 ha = HomeAgent.new({filter: 'pf',address:'nagoya'})
 
 # 365日分のデータ
