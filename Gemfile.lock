@@ -1,0 +1,18 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    bunny (0.8.0)
+    celluloid (0.14.0)
+      timers (>= 1.0.0)
+    oj (2.0.14)
+    timers (1.1.0)
+    uuidtools (2.1.4)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  bunny
+  celluloid
+  oj
+  uuidtools
