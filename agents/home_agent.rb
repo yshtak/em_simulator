@@ -63,13 +63,15 @@ class HomeAgent
     crnt_demand = @demands[cnt]
     next_demand = @demands[cnt+1]
 
-    power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar)
+    #power_value = buy_power_2(crnt_demand,crnt_solar) # 予測考慮なし
+    power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
     results << power_value
    else
     next_solar = @filter.next_value_predict @solars[cnt], cnt
 
-    if @battery < 2000.0
-     results << 2000.0 - @battery
+    if @battery < @target
+     results << @target - @battery
+     @battery = @target
     else
      results << 0.0
     end
@@ -102,6 +104,7 @@ class HomeAgent
     #p value
    elsif @battery - (t1 + t0) <= @max_strage # それ以外は買わない
     # 買わない
+    #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0 
    end
   elsif d0 - s0 > 0 && d1 - s1 <= 0 # Case 2 -------------------
    if @battery - (t0 - t1) > 0 && @battery - (t0 - t1) <= @target
@@ -113,6 +116,7 @@ class HomeAgent
      #p value
     elsif @battery - t0 > 0
      # 買わない
+     #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
     end
    end
    # Exception
@@ -120,9 +124,11 @@ class HomeAgent
   elsif d0 - s0 <= 0 && d1 - s1 > 0 # Case 3 -------------------
    if @battery + t0 - t1 >= @target
     # 買わない
+    #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
    elsif @battery + t0 - t1 < @target
     if @battery + t0 > @max_strage
      # 買わない
+     #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
     elsif @battery + t0 <= @max_strage
      #value = @max_strage - (@battery + t1)
      value = t1 - t0
@@ -133,12 +139,29 @@ class HomeAgent
    if @battery + t0 + t1 < @target
     value = @target - (@battery + (t0 + t1))
    else
-    @battery += s0 if @battery < @max_strage
+    #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
    end
-   # 買わない
   end
+  @battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0 
   @battery = @battery - d0 + value
   return value 
+ end
+
+ # 現在時刻のみ見る場合の戦略
+ def buy_power_2 d0, s0
+  if d0 > s0
+   if @battery - (d0 - s0) > @target
+    @battery = @battery - (d0 - s0)
+    return 0.0
+   else
+    value =  @target - (@battery - (d0 - s0))
+    @battery = @battery - d0 + value
+    return value
+   end
+  else
+   @battery =  @battery + (s0 - d0) < @max_strage ? @battery + (s0 - d0) : @max_strage
+   return 0.0
+  end
  end
 
  # 買う相手先の選択
