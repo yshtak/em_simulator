@@ -6,6 +6,7 @@ require "#{DIRROOT}/filter/02_particle_filter"
 #: 初期設定
 
 ha = HomeAgent.new({filter: 'pf',address:'nagoya'})
+#ha = HomeAgent.new({filter: 'none',address:'nagoya'})
 
 # 365日分のデータ
 #buy_output = open('buy_result.csv','w')

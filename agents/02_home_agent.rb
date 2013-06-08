@@ -22,7 +22,6 @@ class HomeAgent
   @demands = config[:demands]
   @clock = 0
   @address = config[:address]
-  @weather_model = []
  end
 
  # 需要量のセット
@@ -37,22 +36,19 @@ class HomeAgent
   @solars = datas
  end
 
- # TODO: 例外処理の追加
  def select_weather type
   root = File.expand_path File.dirname __FILE__
-  tmp_model = (0..SIM_INTERVAL-1).map{|x| 0.0}
   case type
   when "sunny"
-   @weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
-   tmp_model = @weather_model.clone
+   model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
+   @filter.set_model_data model
   when "rainny"
-   @weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
-   tmp_model = @weather_model.clone
+   model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
+   @filter.set_model_data model
   when "cloudy"
-   @weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
-   tmp_model = @weather_model.clone
+   model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
+   @filter.set_model_data model
   end
-  @filter.set_model_data tmp_model if !@filter.nil?
  end
 
  # 一日の行動をする
@@ -61,40 +57,25 @@ class HomeAgent
   bs = []
   for cnt in 0..SIM_INTERVAL-1 do
    bs << @battery
-   if @filter.nil? # Filter使わないとき
-    if cnt >(4*1) && cnt < (23*4) # タイムステップ（最初の1時間と最後の1時間を除く）
-     crnt_solar = @solars[cnt]
-     crnt_demand = @demands[cnt]
-     power_value = buy_power_2(crnt_demand,crnt_solar) # 予測考慮なし
-     results << power_value
-    else # 最初の1時間と最後の一時間
-     crnt_solar = @solars[cnt]
-     if @battery < @target # バッテリー容量が目標値を下回るとき
-      results << @target - @battery # 目標値になるように電力を買う
-      @battery = @target
-     else
-      results << 0.0
-     end
-    end
-   else # Particle Filter を使った場合
-    if cnt > (4 * 1) && cnt < (23 * 4)
-     crnt_solar = @solars[cnt]
-     next_solar = @filter.next_value_predict crnt_solar, cnt
-     crnt_demand = @demands[cnt]
-     next_demand = @demands[cnt+1]
- 
-     power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
-     results << power_value
+   if cnt > (4 * 1) && cnt < (23 * 4)
+    crnt_solar = @solars[cnt] # 現在時刻の発電量
+    next_solar = @filter.next_value_predict crnt_solar, cnt # 次のタイムステップの発電量予測
+    crnt_demand = @demands[cnt] # 現在の需要
+    next_demand = @demands[cnt+1] # 次の需要
+
+    #power_value = buy_power_2(crnt_demand,crnt_solar) # 予測考慮なし
+    power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
+    results << power_value
+   else
+    next_solar = @filter.next_value_predict @solars[cnt], cnt
+
+    if @battery < @target
+     results << @target - @battery
+     @battery = @target
     else
-     next_solar = @filter.next_value_predict @solars[cnt], cnt
- 
-     if @battery < @target
-      results << @target - @battery
-      @battery = @target
-     else
-      results << 0.0
-     end
+     results << 0.0
     end
+
    end
   end
   return [results, bs]
@@ -201,7 +182,7 @@ class HomeAgent
  # 1日の初期化
  def init_date
   @clock = 0
-  @filter.init_data if !@filter.nil?
+  @filter.init_data
  end
 
  private
