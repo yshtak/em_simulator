@@ -3,6 +3,7 @@ require 'awesome_print'
 # Particle Filter
 #
 class ParticleFilter
+ attr_accessor :trains # for test
 
  def initialize config={}
   @config = {
@@ -53,6 +54,7 @@ class ParticleFilter
   @pre_solars.clear
   @pre_ps = []
   @current_ps = (1..@particles_number).map{|a| @rbm.rnd_v 5.0, 1.0 }
+  @trains['temp'][:data] = []
  end
 
  # 天候の初期化
@@ -114,7 +116,9 @@ class ParticleFilter
    #ap xm_t1
    x_pre = 0.0
    if train.size > 0
-    x_pre = @current_pre + ((solar * ratio - x_t0) + (xt_n1 - solar))/2.0 + w[0]
+    ap @current_pre
+    ap solar
+    x_pre = @current_pre + ((solar * ratio - x_t0) + (xt_n1 - x_t0))/2.0 + w[0]
     #x_pre = @current_pre + ((solar * ratio - x_t0.to_f) + (xm_t1 - x_t0))/2.0 + w[0]
    else
     x_pre = @current_pre + ((solar * ratio - x_t0.to_f) + (xm_t1 - x_t0))/2.0 + w[0]

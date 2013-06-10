@@ -2,7 +2,7 @@ DIRROOT = File.expand_path File.dirname __FILE__
 require 'yaml'
 require "#{DIRROOT}/agents/home_agent"
 require "#{DIRROOT}/filter/02_particle_filter"
-
+require "awesome_print"
 #: 初期設定
 
 ha = HomeAgent.new({filter: 'pf',address:'nagoya'})
@@ -45,6 +45,7 @@ for count in 1..365 do
   output.write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]}\n"
   #output.write "#{buys[i]},#{bats[i]}\n"
  }
+ ap ha.filter.trains['temp'][:data]
  ha.init_date # 初期化
 
  if count % 5 == 0

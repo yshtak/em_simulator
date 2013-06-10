@@ -1,7 +1,7 @@
 require "#{File.expand_path File.dirname __FILE__}/../filter/02_particle_filter"
 
 class HomeAgent
- attr_accessor :strage, :target
+ attr_accessor :strage, :target, :filter
  SIM_INTERVAL = 24 * 4 # 15分刻み
 
  def initialize cfg={}
