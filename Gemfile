@@ -5,5 +5,6 @@ gem 'celluloid'
 gem 'bunny'
 gem 'oj'
 gem 'uuidtools'
+gem 'awesome_print'
 
 # gem "rails"

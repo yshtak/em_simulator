@@ -6,6 +6,7 @@ require "#{DIRROOT}/filter/02_particle_filter"
 #: 初期設定
 
 ha = HomeAgent.new({filter: 'pf',address:'nagoya'})
+#ha = HomeAgent.new({filter: 'none',address:'nagoya'})
 
 # 365日分のデータ
 #buy_output = open('buy_result.csv','w')
@@ -38,16 +39,18 @@ for count in 1..365 do
  ha.set_demands demands
  ha.set_solars solars 
 
- buys, bats = ha.date_action
- (0..bats.size-1).each{|i|
-  output.write "#{buys[i]},#{bats[i]}\n"
+ #buys, bats = ha.date_action
+ simdatas = ha.date_action
+ (0..simdatas[:buy].size-1).each{|i|
+  output.write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]}\n"
+  #output.write "#{buys[i]},#{bats[i]}\n"
  }
  ha.init_date # 初期化
 
  if count % 5 == 0
   output.close
   number += 1
-  output = open("./result/result_#{number}.csv",'w')
+  output = open("./result/result_#{number}.csv",'w') if count!=365
  end
  #bats.each{|bat| battery_output.write("#{bat}\n") }
  #buys.each{|buy| buy_output.write("#{buy}\n")}

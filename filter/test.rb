@@ -28,20 +28,24 @@ datas = open("oneday.csv","r").read.split(",").map{|x| x.to_f}
 #datas = open("sunny.csv","r").read.split(",").map{|x| x.to_f}
 #datas = open("cloudy.csv","r").read.split(",").map{|x| x.to_f}
 #datas = open("rainny.csv","r").read.split(",").map{|x| x.to_f}
-mdata = open("rainny.csv","r").read.split(",").map{|x| x.to_f}
+#mdata = open("rainny.csv","r").read.split(",").map{|x| x.to_f}
 #mdata = open("cloudy.csv","r").read.split(",").map{|x| x.to_f}
-#mdata = open("sunny.csv","r").read.split(",").map{|x| x.to_f}
+mdata = open("sunny.csv","r").read.split(",").map{|x| x.to_f}
 
 mean = datas.inject(0){|sum,d| sum += d} / datas.size
 sigma = datas.inject(0){|sum, d| sum += d*d} / (datas.size - 1)
 config = {model_data: mdata}
 pf = ParticleFilter.new config
+pf.set_weather("sunny")
 #pf = ParticleFilter.new config
 
+file = open('test_result.csv', 'w')
+file.write("RealData,PredictData\n")
 datas.each_with_index do |data, index|
  value = pf.next_value_predict data, index
  #p "[#{index}]:#{value}"
  #print value, ": pre_value #{data}\n"
  print value, "\n"
+ file.write("#{data},#{value}\n")
 end 
-
+file.close
