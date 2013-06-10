@@ -52,13 +52,17 @@ class HomeAgent
    @weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
    tmp_model = @weather_model.clone
   end
+  @filter.set_weather type if !@filter.nil?
   @filter.set_model_data tmp_model if !@filter.nil?
  end
 
  # 一日の行動をする
  def date_action
-  results = []
-  bs = []
+  results = [] # 買った電力量
+  bs = [] # 蓄電池の状況
+  predicts = [0.0] # 予測値(実験用)
+  reals = []
+  simdatas = {buy: results, battery: bs, predict: predicts, real: reals} # 結果
   for cnt in 0..SIM_INTERVAL-1 do
    bs << @battery
    if @filter.nil? # Filter使わないとき
@@ -67,8 +71,12 @@ class HomeAgent
      crnt_demand = @demands[cnt]
      power_value = buy_power_2(crnt_demand,crnt_solar) # 予測考慮なし
      results << power_value
+     predicts << crnt_solar
+     reals << crnt_solar
     else # 最初の1時間と最後の一時間
      crnt_solar = @solars[cnt]
+     predicts << crnt_solar
+     reals << crnt_solar
      if @battery < @target # バッテリー容量が目標値を下回るとき
       results << @target - @battery # 目標値になるように電力を買う
       @battery = @target
@@ -82,11 +90,15 @@ class HomeAgent
      next_solar = @filter.next_value_predict crnt_solar, cnt
      crnt_demand = @demands[cnt]
      next_demand = @demands[cnt+1]
- 
+
      power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
      results << power_value
+     predicts << next_solar
+     reals << crnt_solar
     else
      next_solar = @filter.next_value_predict @solars[cnt], cnt
+     predicts << next_solar
+     reals << @solars[cnt]
  
      if @battery < @target
       results << @target - @battery
@@ -97,7 +109,8 @@ class HomeAgent
     end
    end
   end
-  return [results, bs]
+  #return [results, bs]
+  return simdatas
  end
 
  # 買う量を決定（価格と量を返り値とする）

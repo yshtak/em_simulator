@@ -1,3 +1,4 @@
+require 'awesome_print'
 require "#{File.expand_path File.dirname __FILE__}/../filter/02_particle_filter"
 
 class HomeAgent
