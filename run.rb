@@ -5,8 +5,9 @@ require "#{DIRROOT}/filter/02_particle_filter"
 require "awesome_print"
 #: 初期設定
 
-ha = HomeAgent.new({filter: 'pf',address:'nagoya'})
+#ha = HomeAgent.new({filter: 'pf',address:'nagoya'})
 #ha = HomeAgent.new({filter: 'none',address:'nagoya'})
+ha = HomeAgent.new({filter: 'normal', address:'nagoya'})
 
 # 365日分のデータ
 #buy_output = open('buy_result.csv','w')
@@ -45,7 +46,7 @@ for count in 1..365 do
   output.write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]}\n"
   #output.write "#{buys[i]},#{bats[i]}\n"
  }
- ap ha.filter.trains['temp'][:data]
+ #ap ha.filter.trains['temp'][:data]
  ha.init_date # 初期化
 
  if count % 5 == 0

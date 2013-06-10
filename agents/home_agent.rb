@@ -13,16 +13,19 @@ class HomeAgent
    demands: [], # 15分毎の1日の需要データ
    address: "unknown"
   }.merge(cfg)
+  ap config
   # データの初期化
   @max_strage = config[:max_strage]
   @battery = 2000.0
+  @address = config[:address]
+  @weather = "none"
+  @weather_model = []
+  @weather_models = {'sunny' => [], 'rainny' => [], 'cloudy' => []}
   @filter = filter_init config[:filter]
   @target = config[:target]
   @solars = config[:solars]
   @demands = config[:demands]
   @clock = 0
-  @address = config[:address]
-  @weather_model = []
  end
 
  # 需要量のセット
@@ -37,23 +40,35 @@ class HomeAgent
   @solars = datas
  end
 
+ # 天候モデルの初期化
+ def init_weather_models
+  root = File.expand_path File.dirname __FILE__
+  @weather_models['sunny'] = open("#{root}/../data/solar/#{@address}/models/sunny.csv").read.split(',').map{|x|x.to_f}
+  @weather_models['cloudy'] = open("#{root}/../data/solar/#{@address}/models/cloudy.csv").read.split(',').map{|x|x.to_f}
+  @weather_models['rainny'] = open("#{root}/../data/solar/#{@address}/models/rainny.csv").read.split(',').map{|x|x.to_f} 
+ end
+
  # TODO: 例外処理の追加
  def select_weather type
   root = File.expand_path File.dirname __FILE__
   tmp_model = (0..SIM_INTERVAL-1).map{|x| 0.0}
   case type
   when "sunny"
-   @weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
-   tmp_model = @weather_model.clone
+   #@weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
+   tmp_model = @weather_models[type].clone
   when "rainny"
-   @weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
-   tmp_model = @weather_model.clone
+   #@weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
+   tmp_model = @weather_models[type].clone
   when "cloudy"
-   @weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
-   tmp_model = @weather_model.clone
+   #@weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
+   tmp_model = @weather_models[type].clone
   end
-  @filter.set_weather type if !@filter.nil?
-  @filter.set_model_data tmp_model if !@filter.nil?
+  if @filter.eql?("normal")
+   @weather = type
+  else
+   @filter.set_weather type if !@filter.nil?
+   @filter.set_model_data tmp_model if !@filter.nil?
+  end
  end
 
  # 一日の行動をする
@@ -84,6 +99,30 @@ class HomeAgent
       results << 0.0
      end
     end
+   elsif @filter.eql?("normal") # 平均した曲線モデルで予測する場合
+    if cnt > (4*1) && cnt < (23 * 4)
+     crnt_solar = @solars[cnt]
+     next_solar = @weather_models[@weather][cnt+1]
+     crnt_demand = @demands[cnt]
+     next_demand = @demands[cnt+1]
+
+     power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
+     results << power_value
+     predicts << next_solar
+     reals << crnt_solar
+    else
+     next_solar = @weather_models[@weather][cnt]
+     predicts << next_solar
+     reals << @solars[cnt]
+ 
+     if @battery < @target
+      results << @target - @battery
+      @battery = @target
+     else
+      results << 0.0
+     end
+
+    end 
    else # Particle Filter を使った場合
     if cnt > (4 * 1) && cnt < (23 * 4)
      crnt_solar = @solars[cnt]
@@ -109,6 +148,8 @@ class HomeAgent
     end
    end
   end
+  p predicts[45]
+  p reals[45]
   #return [results, bs]
   return simdatas
  end
@@ -214,7 +255,7 @@ class HomeAgent
  # 1日の初期化
  def init_date
   @clock = 0
-  @filter.init_data if !@filter.nil?
+  @filter.init_data if !@filter.nil? && !@filter.eql?("normal")
  end
 
  private
@@ -223,6 +264,9 @@ class HomeAgent
   case type
   when 'pf'
    return @filter = ParticleFilter.new 
+  when 'normal'
+   init_weather_models
+   return @filter = 'normal'
   when 'none'
    return nil
   end

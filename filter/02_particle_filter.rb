@@ -99,6 +99,7 @@ class ParticleFilter
  # solar： 現在の実測値
  # t1: 現在時刻
  # solar： 現在時刻の発電量
+ # @currnet_pre：ここでは前の実測値
  def transition x_t0, t1, solar
   w = @rbm.generate_rand_normval @mean, @sigma, 1
   xm_t1 = @model_data.size - 1 > t1+1 ? @model_data[t1+1] : @model_data[t1]
@@ -116,12 +117,15 @@ class ParticleFilter
    #ap xm_t1
    x_pre = 0.0
    if train.size > 0
-    ap @current_pre
-    ap solar
-    x_pre = @current_pre + ((solar * ratio - x_t0) + (xt_n1 - x_t0))/2.0 + w[0]
+    #x_pre = @current_pre + ((solar * ratio - x_t0) + (xt_n1 - x_t0))/2.0 + w[0]
     #x_pre = @current_pre + ((solar * ratio - x_t0.to_f) + (xm_t1 - x_t0))/2.0 + w[0]
+    x_pre = @current_pre + (x_t0 - xt_n1) + w[0]
+    p x_pre
    else
-    x_pre = @current_pre + ((solar * ratio - x_t0.to_f) + (xm_t1 - x_t0))/2.0 + w[0]
+    x_pre = @current_pre + ((solar - x_t0) + (x_t0 - xm_t1))/2.0 + w[0]
+    #p "crnt_pre: #{@current_pre}, solar:#{solar}, x_t0: #{x_t0}, xm_t1: #{xm_t1}"
+    #x_pre = @current_pre + (((solar - x_t0) + (xm_t1 - solar))/2.0 + (xm_t1 - x_t0))/2.0 + w[0]
+    #x_pre = @current_pre + ((solar * ratio - x_t0.to_f) + (xm_t1 - x_t0))/2.0 + w[0]
    end
    return x_pre
 
@@ -255,7 +259,8 @@ class ParticleFilter
   ws = Array.new(@particles_number,1.0)
   @current_ps, ws = self.pf_sir_one_step @current_ps, ws, y, x_t0, time
   @current_pre = @current_ps.inject(0){|sum,p| sum+=p}/@particles_number
-  
+  result = @current_pre  
+  @current_pre = x_t0 # 実測値に置き換える
   @pre_solars.push x_t0
   #@pre_solars.unshift @current_pre
   #@pre_solars.pop if @pre_solars.size > 5
@@ -263,7 +268,8 @@ class ParticleFilter
   #@pre_ps.pop if @pre_ps.size > 3
   #print @current_ps.join(','),"\n"
   train_per_step x_t0 # 学習する
-  return @current_pre < 0.0 ? 0.0 : @current_pre # 0以下は0にする
+
+  return result < 0.0 ? 0.0 : result # 0以下は0にする
  end
 
  # Box=Muller法による正規乱数生成し確率を返す
