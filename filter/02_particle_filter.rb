@@ -3,7 +3,7 @@ require 'awesome_print'
 # Particle Filter
 #
 class ParticleFilter
- attr_accessor :trains # for test
+ attr_accessor :trains,:config # for test
 
  def initialize config={}
   @config = {
@@ -54,7 +54,7 @@ class ParticleFilter
   @pre_solars.clear
   @pre_ps = []
   @current_ps = (1..@particles_number).map{|a| @rbm.rnd_v 5.0, 1.0 }
-  @trains['temp'][:data] = []
+  #@trains['temp'][:data] = []
  end
 
  # 天候の初期化
@@ -105,7 +105,7 @@ class ParticleFilter
   xm_t1 = @model_data.size - 1 > t1+1 ? @model_data[t1+1] : @model_data[t1]
   ###
   if @pre_solars.size > 1 # 
-   ratio = 2.0
+   ratio = (solar+1.0) / (@model_data[t1]+1.0)
    train = @trains[@weather][:data]
    # 次の状態:
    # 現在の実測値 + (現在の実測値 - 一つ前の予測値 + 一つ先の実測値 - 一つ前の実測値)/2.0
@@ -118,11 +118,13 @@ class ParticleFilter
    x_pre = 0.0
    if train.size > 0
     #x_pre = @current_pre + ((solar * ratio - x_t0) + (xt_n1 - x_t0))/2.0 + w[0]
-    #x_pre = @current_pre + ((solar * ratio - x_t0.to_f) + (xm_t1 - x_t0))/2.0 + w[0]
-    x_pre = @current_pre + (x_t0 - xt_n1) + w[0]
-    p x_pre
+    #x_pre = @current_pre + (((solar - x_t0) + (xt_n1 - solar))/2.0 + (xt_n1 - x_t0))/2.0 + w[0]
+    x_pre = solar + (solar - @model_data[t1]) + ((solar - x_t0) + (xt_n1 - solar))/2.0 + w[0]
+    #dump = {:xtn1 => xt_n1, :xmt1 => xm_t1, :solar => solar,:raito => ratio, :xpre => x_pre}
+    #ap dump
+    #x_pre = @current_pre + (x_t0 - xt_n1) + w[0]
    else
-    x_pre = @current_pre + ((solar - x_t0) + (x_t0 - xm_t1))/2.0 + w[0]
+    x_pre = solar + ((solar - x_t0) + (xm_t1 - solar))/2.0 + w[0]
     #p "crnt_pre: #{@current_pre}, solar:#{solar}, x_t0: #{x_t0}, xm_t1: #{xm_t1}"
     #x_pre = @current_pre + (((solar - x_t0) + (xm_t1 - solar))/2.0 + (xm_t1 - x_t0))/2.0 + w[0]
     #x_pre = @current_pre + ((solar * ratio - x_t0.to_f) + (xm_t1 - x_t0))/2.0 + w[0]
@@ -252,6 +254,8 @@ class ParticleFilter
   return [xs_resampled, ws_resampled] 
  end
 
+ # x_t0: 現在時刻の値
+ # time: 現在時刻
  def next_value_predict x_t0, time
   x_t1 = self.transition @current_pre, time, x_t0
   #x_t1 = time > 0 ? self.transition(@pre_solars[time-1], time, x_t0) : self.transition( @current_pre, time, x_t0)
@@ -268,7 +272,6 @@ class ParticleFilter
   #@pre_ps.pop if @pre_ps.size > 3
   #print @current_ps.join(','),"\n"
   train_per_step x_t0 # 学習する
-
   return result < 0.0 ? 0.0 : result # 0以下は0にする
  end
 
@@ -378,22 +381,23 @@ class ParticleFilter
  # 学習する（毎時間毎）
  def train_per_step data
   chunk_size = 3
-  train = @trains[@weather][:data] # pointer
+  train_size = @trains[@weather][:data].size # pointer
   tmp_train = @trains['temp'][:data] # pointer
+
+  @trains['temp'][:data] << data
   
-  if tmp_train.size < @sim_timesteps
-   tmp_train << data
-  else
+  if tmp_train.size == @sim_timesteps
    # ３日分の学習データがすでにあるかどうか調べる
-   if train.size < chunk_size * @sim_timesteps
-    train.concat tmp_train # 結合
+   if train_size < chunk_size * @sim_timesteps
+    @trains[@weather][:data].concat @trains['temp'][:data].clone # 結合
    else
     # ３日分の学習データが存在する場合
-    size = train.size # 
-    train.slice!(0,@sim_timesteps)
-    train.concat tmp_train # 結合
+    @trains[@weather][:data].slice!(0,@sim_timesteps)
+    @trains[@weather][:data].concat @trains['temp'][:data].clone # 結合
    end
-   tmp_train.clear # tmp_trainの削除
+   p "#{@trains['temp'][:data].size} --- #{@trains[@weather][:data].size}"
+   @trains['temp'][:data] = [] # tmp_trainの削除
+   p "#{@trains['temp'][:data].size} --- #{@trains[@weather][:data].size}"
   end
  end
 
