@@ -271,7 +271,11 @@ class HomeAgent
   if crnt_condition < @target # 現時点で目標値よりバッテリー残量が少ないとき
    if next_condition < @target # 次の時刻でも目標値が達成できないとき
     # 達成できなくなる分の電力を買っておく
-    result = @target - next_condition
+    if @target - next_condition > 500.0 # １５分に受け取れる電力量は500wと想定する
+     result = 500.0
+    else
+     result = @target - next_condition
+    end
     next_battery = crnt_condition + result # 次の時刻でのバッテリー残量予測
     # 買った分で最大容量を超えてしまったときは超えないようにする
     result = next_battery > @max_strage ? result - (next_battery - @max_strage) : result
@@ -282,7 +286,11 @@ class HomeAgent
   else # 現時点では目標値は達成しているとき
    if next_condition < @target # 次の時刻で目標値が達成できない
     # 達成できなくなる分の電力を買っておく
-    result = @target - next_condition
+    if @target - next_condition > 500.0 # １５分に受け取れる電力量は500wと想定する
+     result = 500.0
+    else
+     result = @target - next_condition
+    end
     next_battery = crnt_condition + result # 次の時刻でのバッテリー残量予測
     result = next_battery > @max_strage ? result - (next_battery - @max_strage) : result
    else # 次の時刻でも目標値が達成できるとき
@@ -301,11 +309,17 @@ class HomeAgent
 
  # 電力を売る
  def sell_power 
-  if @battery < @target
+  if @battery <= (@target)
    return 0.0
   end
-  result = @battery - @target
-  @battery = @target
+  over_condition = @battery - @target > 500.0
+  result = 0.0
+  if over_condition
+   result = 500.0
+  else
+   result = @battery - @target
+  end
+  @battery = @battery - result
   return result
  end
 
