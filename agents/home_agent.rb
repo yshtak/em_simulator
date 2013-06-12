@@ -7,7 +7,7 @@ class HomeAgent
  def initialize cfg={}
   config = {
    filter: 'none', # 未来予測のためのフィルターのタイプ
-   max_strage: 4000.0, # 蓄電容量(Wh)
+   max_strage: 4500.0, # 蓄電容量(Wh)
    target: 2000.0, # 目標蓄電量(Wh)
    solars: [], # 15分毎の1日の電力発電データ
    demands: [], # 15分毎の1日の需要データ
@@ -115,8 +115,8 @@ class HomeAgent
      crnt_demand = @demands[cnt]
      next_demand = @demands[cnt+1]
 
-     #power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
-     power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
+     power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
+     #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
      sell_value = sell_power # 余剰電力を売る
 
      results << power_value
@@ -145,8 +145,8 @@ class HomeAgent
      crnt_demand = @demands[cnt]
      next_demand = @demands[cnt+1]
 
-     #power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
-     power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
+     power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
+     #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
      sell_value = sell_power # 余剰電力を売る
 
      results << power_value
@@ -276,8 +276,8 @@ class HomeAgent
     else
      result = @target - next_condition
     end
-    next_battery = crnt_condition + result # 次の時刻でのバッテリー残量予測
     # 買った分で最大容量を超えてしまったときは超えないようにする
+    next_battery = crnt_condition + result # 次の時刻でのバッテリー残量予測
     result = next_battery > @max_strage ? result - (next_battery - @max_strage) : result
    else # 次の時刻では目標値が達成できるとき
     # 買わない 売るかどうかは保留したほうがいい？ただし0にはしないようにする
@@ -299,6 +299,7 @@ class HomeAgent
    end
   end
   @battery = crnt_condition + result # バッテリー残量の状態遷移
+  @battery = @max_strage if @battery > @max_strage
   return result
  end
 
@@ -309,18 +310,15 @@ class HomeAgent
 
  # 電力を売る
  def sell_power 
-  if @battery <= (@target)
-   return 0.0
-  end
-  over_condition = @battery - @target > 500.0
+  over_condition = @battery - @target < 500.0
   result = 0.0
   if over_condition
-   result = 500.0
+    return result
   else
-   result = @battery - @target
+   result = @battery - @target - 500.0 > 500.0 ? 500.0 : @battery - @target - 500.0
+   @battery = @battery - result
+   return result 
   end
-  @battery = @battery - result
-  return result
  end
 
  # 時間をすすめる
