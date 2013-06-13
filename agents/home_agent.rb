@@ -26,7 +26,8 @@ class HomeAgent
   @solars = config[:solars]
   @demands = config[:demands]
   @clock = 0
-  @sells = (0..SIM_INTERVAL-1).map{|i| 0.0}
+  #@sells = (0..SIM_INTERVAL-1).map{|i| 0.0}
+  @sells = 0.0
  end
 
  # 需要量のセット
@@ -117,10 +118,11 @@ class HomeAgent
 
      power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
      #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
-     sell_value = sell_power # 余剰電力を売る
+     #sell_value = sell_power # 余剰電力を売る
 
      results << power_value
-     sells << sell_value
+     sells << @sells
+     #sells << sell_value
      predicts << next_solar
      reals << crnt_solar
     else
@@ -147,10 +149,11 @@ class HomeAgent
 
      power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
      #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
-     sell_value = sell_power # 余剰電力を売る
+     #sell_value = sell_power # 余剰電力を売る
 
      results << power_value
-     sells << sell_value
+     #sells << sell_value
+     sells << @sells
      predicts << next_solar
      reals << crnt_solar
     else # 夜中と早朝の戦略
@@ -186,6 +189,7 @@ class HomeAgent
  # 内部プログラムのt0,t1は絶対値であり，各ケース内の場合分け
  # で用いられる.
  def buy_power d0, d1, s0, s1
+  max_buy = 500.0
   t0 = (d0 - s0).abs
   t1 = (d1 - s1).abs
   value = 0.0 # 買電量の初期化
@@ -200,6 +204,7 @@ class HomeAgent
    elsif @battery - (t1 + t0) <= @max_strage # それ以外は買わない
     # 買わない
     #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0 
+    sell_power_2
    end
   elsif d0 - s0 > 0 && d1 - s1 <= 0 # Case 2 -------------------
    if @battery - (t0 - t1) > 0 && @battery - (t0 - t1) <= @target
@@ -212,6 +217,7 @@ class HomeAgent
     elsif @battery - t0 > 0
      # 買わない
      #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
+     sell_power_2
     end
    end
    # Exception
@@ -224,6 +230,7 @@ class HomeAgent
     if @battery + t0 > @max_strage
      # 買わない
      #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
+     sell_power_2
     elsif @battery + t0 <= @max_strage
      #value = @max_strage - (@battery + t1)
      value = t1 - t0
@@ -235,8 +242,10 @@ class HomeAgent
     value = @target - (@battery + (t0 + t1))
    else
     #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
+    sell_power_2
    end
   end
+  value = max_buy > value ? value : max_buy
   @battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0 
   @battery = @battery - d0 + value
   return value 
@@ -282,6 +291,7 @@ class HomeAgent
    else # 次の時刻では目標値が達成できるとき
     # 買わない 売るかどうかは保留したほうがいい？ただし0にはしないようにする
     result = 1.0 if crnt_condition == 0.0
+    sell_power_2
    end
   else # 現時点では目標値は達成しているとき
    if next_condition < @target # 次の時刻で目標値が達成できない
@@ -296,6 +306,7 @@ class HomeAgent
    else # 次の時刻でも目標値が達成できるとき
     # Don't buy power.
     # むしろ売る
+    sell_power_2
    end
   end
   @battery = crnt_condition + result # バッテリー残量の状態遷移
@@ -319,6 +330,12 @@ class HomeAgent
    @battery = @battery - result
    return result 
   end
+ end
+
+ # 予測値考慮
+ def sell_power_2
+  @sells = sell_power
+  return @sells
  end
 
  # 時間をすすめる
