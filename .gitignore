@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 *.gem
 *.rbc
 .bundle
@@ -16,3 +17,6 @@ tmp
 .yardoc
 _yardoc
 doc/
+=======
+/result
+>>>>>>> 9288382e86db2dd7b68f92d81768ee6de3eda0c7
