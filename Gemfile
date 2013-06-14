@@ -6,5 +6,6 @@ gem 'bunny'
 gem 'oj'
 gem 'uuidtools'
 gem 'awesome_print'
-
+gem 'redis'
+gem 'hiredis'
 # gem "rails"
