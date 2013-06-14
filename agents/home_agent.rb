@@ -11,7 +11,8 @@ class HomeAgent
    target: 2000.0, # 目標蓄電量(Wh)
    solars: [], # 15分毎の1日の電力発電データ
    demands: [], # 15分毎の1日の需要データ
-   address: "unknown"
+   address: "unknown",
+   limit_power: 500.0
   }.merge(cfg)
   ap config
   # データの初期化
