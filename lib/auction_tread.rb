@@ -9,8 +9,6 @@ require 'time'
 # タイムステップごとの価格
 # タイムステップごとの買い手の人数
 # タイムステップごとの
-# bid:
-# ask:
 # 
 ##
 class AuctionThread
@@ -34,11 +32,11 @@ class AuctionThread
  # 一週間の結果を取得 
  def get_weekly_threads type
   size = @redis.llen(type)
-  size = size > 7 ? 7 : size
   ids = @redis.lrange(type, 0, size)
   return ids.map{|id| @redis.lrange(id,0,size-1).map{|data| Oj.load data}}
  end 
 
+ # 価格の更新
  def update_price price
   @market_data[:price] = price
  end
@@ -55,6 +53,7 @@ class AuctionThread
 
  # オークションの終了
  def done_auction
+  @redis.lpop @weather if @redis.llen(@weather) == 7
   @redis.rpush @weather, @timestamp
   @timestamp = (Time.parse(@timestamp) + 86400.0).strftime("%Y%m%d")
  end
@@ -64,13 +63,14 @@ class AuctionThread
   set_weather weather
   @market_data = {price: 100.0, buyers_count: 0} # 学習したものを利用
  end
-
+ 
+ # DBを削除
  def destroy
   destroy_thread
  end
 
  def get_thread
-  @redis.lrange( @timestamp, 0, @redis.llen(@timestamp)).map{|data| Oj.load data}
+  @redis.lrange(@timestamp, 0, @redis.llen(@timestamp)).map{|data| Oj.load data}
  end
 
  def next_step
@@ -79,7 +79,6 @@ class AuctionThread
  end
 
  private
-
  def destroy_thread
   @redis.flushdb 
  end
@@ -87,4 +86,5 @@ class AuctionThread
  def dump_thread
 
  end
+
 end
