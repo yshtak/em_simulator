@@ -62,37 +62,6 @@ class ParticleFilter
   @weather = weather
  end
 
- # サンプル用
-=begin
- def transition x_t0, t1
-  w = @rbm.generate_rand_normval @mean, @sigma, 1
-  # 実測値と現在値の変化量にノイズを乗せる
-  varies = []
-  if t1 > 3
-   (t1-12..t1-1).each {|index|
-    varies.unshift(@model_data[index+1] * 1.0 - @model_data[index]*1.0) if index > 0
-   }
-   #p varies if t1 == 5
-   #@pre_solars.each_with_index{|x,index| varies.unshift(@pre_solars[index+1] - x) if @pre_solars.size > index+1}
-   #delta = varies.sort[varies.size/2]
-   delta = varies[1] - varies[0] + varies.inject(0.0){|x,sum| sum += x * 1.2}/varies.size
-   alpha = varies.inject(0.0){|x,sum| sum += x * 1.2}/varies.size
-   #p delta if t1 == 5
-   x_pre = @current_pre + delta
-   return x_pre
-  elsif t1 > 2
-   x_pre = @current_pre + @model_data[1] * 1.4 - @model_data[0] * 0.8 + w[0]
-   return x_pre
-  elsif t1 > 1
-   x_pre = @current_pre + @model_data[0] + w[0]
-   return x_pre
-  else
-   x_pre = @current_pre + w[0]
-   #x_pre = @current_pre +  (x_t1 * 1.4  - x_t0 * 1.0) +  w[0]
-   return x_pre 
-  end
- end
-=end 
  # x_t0： 一つ前の予測値
  # xm_t1： 一つ先のモデル値
  # x_pre： 一つ先の予測値
@@ -138,7 +107,7 @@ class ParticleFilter
  end
 
  def observe x
-  # 40.0kw幅で観測(適当に設定)
+  # 20.0w幅で観測(適当に設定)
   pn = [0.0, 10.0, 20.0]
   #pn = [@current_pre - 10.0, @current_pre, @current_pre + 10.0]
   #pn = [@current_pre-10.0, @current_pre, @current_pre+10.0]
