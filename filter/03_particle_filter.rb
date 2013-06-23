@@ -1,4 +1,5 @@
 require 'awesome_print'
+require 'parallel'
 # 
 # Particle Filter
 #
@@ -106,6 +107,7 @@ class ParticleFilter
   end
  end
 
+ # TODO: 並列化計算
  def observe x
   # 40.0kw幅で観測(適当に設定)
   pn = [0.0, 10.0, 20.0]
@@ -118,6 +120,7 @@ class ParticleFilter
   return y
  end
 
+ # TODO: 並列化計算
  def likehood y, x
   # sigma=3
   sigma = 3.0
@@ -207,18 +210,19 @@ class ParticleFilter
  end
 
  # 予測用
+ # TODO: 並列化計算
  # OneStep particle filter simple importance sampling!
  def pf_sir_one_step ps, ws, y, x_t0, time
   n = ps.size
   x_predicted = Array.new(n,0.0)
   w_updated = Array.new(n,1.0)
-  # 推定 
-  (0..n-1).each{|i|x_predicted[i] = self.transition ps[i], time, x_t0}
+  # 推定（並列処理）
+  Parallel.each((0..n-1).to_a){|i|x_predicted[i] = self.transition ps[i], time, x_t0}
 
-  # 更新
-  (0..n-1).each{|i| w_updated[i] = self.importance_sampling(ws[i], x_predicted[i], y)}
+  # 更新（並列処理）
+  Parallel.each((0..n-1).to_a){|i| w_updated[i] = self.importance_sampling(ws[i], x_predicted[i], y)}
 
-  # リサンプリング
+  # リサンプリング TODO: 並列処理
   xs_resampled, ws_resampled = self.resample x_predicted, w_updated
   return [xs_resampled, ws_resampled] 
  end
@@ -231,15 +235,13 @@ class ParticleFilter
   y = self.observe x_t1
   ws = Array.new(@particles_number,1.0)
   @current_ps, ws = self.pf_sir_one_step @current_ps, ws, y, x_t0, time
+  #@current_pre = @current_ps.inject(0){|sum,p| sum+=p}/@particles_number
   @current_pre = @current_ps.inject(0){|sum,p| sum+=p}/@particles_number
+
   result = @current_pre  
   @current_pre = x_t0 # 実測値に置き換える
   @pre_solars.push x_t0
-  #@pre_solars.unshift @current_pre
-  #@pre_solars.pop if @pre_solars.size > 5
-  #@pre_ps.unshift @current_ps
-  #@pre_ps.pop if @pre_ps.size > 3
-  #print @current_ps.join(','),"\n"
+
   train_per_step x_t0 # 学習する
   return result < 0.0 ? 0.0 : result # 0以下は0にする
  end
@@ -364,9 +366,7 @@ class ParticleFilter
     @trains[@weather][:data].slice!(0,@sim_timesteps)
     @trains[@weather][:data].concat @trains['temp'][:data].clone # 結合
    end
-   p "#{@trains['temp'][:data].size} --- #{@trains[@weather][:data].size}"
    @trains['temp'][:data] = [] # tmp_trainの削除
-   p "#{@trains['temp'][:data].size} --- #{@trains[@weather][:data].size}"
   end
  end
 

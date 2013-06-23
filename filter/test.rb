@@ -11,6 +11,7 @@ datas.each do |data|
 end
 =end
 
+#require "./03_particle_filter"
 require "./02_particle_filter"
 
 #datas = (open("oneday.csv","r").inject(""){|str,line| str + line.chomp}).split(",").map{|a| a.to_i}
