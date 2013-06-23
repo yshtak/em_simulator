@@ -107,7 +107,7 @@ class ParticleFilter
  end
 
  def observe x
-  # 40.0kw幅で観測(適当に設定)
+  # 20.0w幅で観測(適当に設定)
   pn = [0.0, 10.0, 20.0]
   #pn = [@current_pre - 10.0, @current_pre, @current_pre + 10.0]
   #pn = [@current_pre-10.0, @current_pre, @current_pre+10.0]
@@ -364,9 +364,7 @@ class ParticleFilter
     @trains[@weather][:data].slice!(0,@sim_timesteps)
     @trains[@weather][:data].concat @trains['temp'][:data].clone # 結合
    end
-   p "#{@trains['temp'][:data].size} --- #{@trains[@weather][:data].size}"
    @trains['temp'][:data] = [] # tmp_trainの削除
-   p "#{@trains['temp'][:data].size} --- #{@trains[@weather][:data].size}"
   end
  end
 

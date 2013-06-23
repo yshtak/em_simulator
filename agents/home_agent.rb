@@ -275,14 +275,14 @@ class HomeAgent
    if @battery - (t0  + t1) < 0 # 予測と現在の需要和が現時点の蓄電量を超えるとき（空になる）
     value = @battery + t1 > @max_strage ? @max_strage - @battery : t0 + t1
     if d2 - s2 > 0
-     value = (value + t2)/2.0 
+     value = (value + t2)*0.7/2.0 
     else
      value = value - t2
     end
    elsif @battery - (t0 + t1) > 0 && @battery - (t0 + t1) < @target # 未来予測後も目標値以下のとき
     value = @battery + t1 <= @max_strage ? t0 + t1 : @max_strage - @battery
     if d2 - s2 > 0
-     value = (value + t2)/2.0
+     value = (value + t2)*0.7/2.0
     else
      value = value - t2
     end
@@ -300,7 +300,7 @@ class HomeAgent
    if @battery - (t0 - t1) > 0 && @battery - (t0 - t1) <= @target
     value = t0 - t1
     if d2 - s2 > 0
-     value = (value + t2)/2.0 
+     value = (value + t2)*0.7/2.0 
     else
      value = value - t2
     end
@@ -309,7 +309,7 @@ class HomeAgent
     if @battery - t0 < 0
      value =  t0 + @target - @battery
      if d2 - s2 > 0
-      value = (value + t2)/2.0
+      value = (value + t2)*0.7/2.0
      else
       value = value - t2
      end
@@ -345,7 +345,7 @@ class HomeAgent
      #value = @max_strage - (@battery + t1)
      value = t1 - t0
      if d2 - s2 > 0
-      value = (value + t2)/2.0 
+      value = (value + t2)*0.7/2.0 
      else
       value = value - t2
      end
@@ -356,7 +356,7 @@ class HomeAgent
    if @battery + t0 + t1 < @target
     value = @target - (@battery + (t0 + t1))
     if d2 - s2 > 0
-     value = (value + t2)/2.0 
+     value = (value + t2)*0.7/2.0 
     else
      value = value - t2
     end
@@ -369,8 +369,8 @@ class HomeAgent
    end
   end
   value = max_buy > value ? value : max_buy
-  @battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0 
-  @battery = @battery - d0 + value
+  @battery = @battery + s0 - d0 + value > @max_strage ? @max_strage : @battery + s0 - d0 + value
+  #@battery = @battery - d0 + value
   return value  
  end
 
@@ -444,6 +444,19 @@ class HomeAgent
  # 買う相手先の選択
  def select_target id
   
+ end
+
+ # Sell 2
+ def sell_power2nd d1, s1
+  over_condition = @battery - @target < 500.0
+  result = 0.0
+  if over_condition
+    return result
+  else
+   result = @battery - @target - 500.0 > 500.0 ? 500.0 : @battery - @target - 500.0
+   @battery = @battery - result
+   return result 
+  end
  end
 
  # 電力を売る
