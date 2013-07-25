@@ -1,6 +1,15 @@
 require "#{File.expand_path File.dirname __FILE__}/../filter/02_particle_filter"
 require "#{File.expand_path File.dirname __FILE__}/../config/simulation_data"
-
+#========================================================
+#
+# Home Agent
+# 
+#  季節変動を考慮したパーティクルフィルタ
+#  変更点:
+#   晴れ曇り雨を定数で定義(mgaick number)
+#   ParticleFilterでも平均的モデルを導入
+#
+#========================================================
 class HomeAgent
  attr_accessor :strage, :target, :filter
  SIM_INTERVAL = 24 * 4 # 15分刻み
@@ -21,9 +30,9 @@ class HomeAgent
   @max_strage = config[:max_strage]
   @battery = 2000.0
   @address = config[:address]
-  @weather = "none"
+  @weather = "none" 
   @weather_model = []
-  @weather_models = {'sunny' => [], 'rainny' => [], 'cloudy' => []}
+  @weather_models = {SUNNY => [], RAINY => [], CLOUDY => []}
   @filter = filter_init config[:filter]
   @target = config[:target]
   @solars = config[:solars]
@@ -48,25 +57,26 @@ class HomeAgent
  # 天候モデルの初期化
  def init_weather_models
   root = File.expand_path File.dirname __FILE__
-  @weather_models['sunny'] = open("#{root}/../data/solar/#{@address}/models/sunny.csv").read.split(',').map{|x|x.to_f}
-  @weather_models['cloudy'] = open("#{root}/../data/solar/#{@address}/models/cloudy.csv").read.split(',').map{|x|x.to_f}
-  @weather_models['rainny'] = open("#{root}/../data/solar/#{@address}/models/rainny.csv").read.split(',').map{|x|x.to_f} 
+  @weather_models[SUNNY] = open("#{root}/../data/solar/#{@address}/models/sunny.csv").read.split(',').map{|x|x.to_f}
+  @weather_models[CLOUDY] = open("#{root}/../data/solar/#{@address}/models/cloudy.csv").read.split(',').map{|x|x.to_f}
+  @weather_models[RAINY] = open("#{root}/../data/solar/#{@address}/models/rainy.csv").read.split(',').map{|x|x.to_f} 
  end
 
  # TODO: 例外処理の追加
  def select_weather type
   root = File.expand_path File.dirname __FILE__
+  print type 
   tmp_model = (0..SIM_INTERVAL-1).map{|x| 0.0}
   case type
-  when "sunny"
+  when SUNNY 
    #@weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
-   tmp_model = @weather_models[type].clone
-  when "rainny"
+   tmp_model = @weather_models[SUNNY].clone
+  when RAINY 
    #@weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
-   tmp_model = @weather_models[type].clone
-  when "cloudy"
+   tmp_model = @weather_models[RAINY].clone
+  when CLOUDY 
    #@weather_model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
-   tmp_model = @weather_models[type].clone
+   tmp_model = @weather_models[CLOUDY].clone
   end
   if @filter.eql?("normal")
    @weather = type
@@ -74,6 +84,7 @@ class HomeAgent
    @weather = type
    @filter.set_weather type if !@filter.nil?
    @filter.set_model_data tmp_model if !@filter.nil?
+   
   end
  end
 

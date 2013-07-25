@@ -4,6 +4,9 @@ require "#{File.expand_path File.dirname __FILE__}/../filter/02_particle_filter"
 class HomeAgent
  attr_accessor :strage, :target
  SIM_INTERVAL = 24 * 4 # 15分刻み
+ SUNNY=0
+ CLOUDY=1
+ RAINY=2 
 
  def initialize cfg={}
   config = {
@@ -40,14 +43,15 @@ class HomeAgent
  def select_weather type
   root = File.expand_path File.dirname __FILE__
   case type
-  when "sunny"
-   model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
+  when SUNNY 
+   model = open("#{root}/../data/solar/#{@address}/models/sunny.csv").read.split(',').map{|x|x.to_f}
    @filter.set_model_data model
-  when "rainny"
-   model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
+  when RAINY 
+   model = open("#{root}/../data/solar/#{@address}/models/rainy.csv").read.split(',').map{|x|x.to_f}
    @filter.set_model_data model
-  when "cloudy"
-   model = open("#{root}/../data/solar/#{@address}/models/#{type}.csv").read.split(',').map{|x|x.to_f}
+  when CLOUDY 
+   model = open("#{root}/../data/solar/#{@address}/models/cloudy.csv").read.split(',').map{|x|x.to_f}
+   ap model
    @filter.set_model_data model
   end
  end

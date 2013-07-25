@@ -8,5 +8,5 @@ gem 'uuidtools'
 gem 'awesome_print'
 gem 'redis'
 gem 'hiredis'
-
+gem 'pry'
 # gem "rails"

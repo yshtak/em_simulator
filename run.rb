@@ -1,13 +1,15 @@
 DIRROOT = File.expand_path File.dirname __FILE__
 require 'yaml'
-require "#{DIRROOT}/agents/home_agent"
-require "#{DIRROOT}/filter/02_particle_filter"
+require "#{DIRROOT}/agents/03_home_agent"
+#require "#{DIRROOT}/filter/02_particle_filter"
+require "#{DIRROOT}/filter/03_particle_filter"
 require "awesome_print"
+require "#{DIRROOT}/config/simulation_data.rb"
 #: 初期設定
-
-#ha = HomeAgent.new({filter: 'pf',address:'nagoya'})
+include SimulationData
+ha = HomeAgent.new({filter: 'pf',address:'nagoya'})
 #ha = HomeAgent.new({filter: 'none',address:'nagoya'})
-ha = HomeAgent.new({filter: 'normal', address:'nagoya'})
+#ha = HomeAgent.new({filter: 'normal', address:'nagoya'})
 #ap ha.filter.config
 
 # 365日分のデータ
@@ -15,7 +17,7 @@ ha = HomeAgent.new({filter: 'normal', address:'nagoya'})
 #battery_output = open('battery_result.csv','w')
 output = open('./result/result_0.csv','w')
 output.write("buy,battery,predict,real,sell\n")
-number = 0
+number = 0 # 分割ナンバー
 
 solarfile = open("#{DIRROOT}/data/solar/nagoya/0.csv")
 demandfile = open("#{DIRROOT}/data/demand/nagoya/0.csv")
@@ -30,12 +32,12 @@ for count in 1..365 do
  print "Day #{count}, Sum Solar:#{sum_solar},"
  if sum_solar > 12000.0
   print "Weather: Sunny.\n"
-  ha.select_weather 'sunny'
+  ha.select_weather SUNNY 
  elsif sum_solar > 5500.0
-  ha.select_weather 'cloudy'
+  ha.select_weather CLOUDY 
   print "Weather: Cloudy.\n"
  else
-  ha.select_weather 'rainny'
+  ha.select_weather RAINY 
   print "Weather: Rain.\n"
  end
 
