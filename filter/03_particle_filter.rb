@@ -97,7 +97,7 @@ class ParticleFilter
    xmodel_t2 = @model_data[t1]
   end
   ###
-  if @pre_solars.size > 1 # 
+  #if @pre_solars.size > 1 # 
    #ratio = (solar+1.0) / (@model_data[t1]+1.0)
    train = @trains[@weather][:data]
    # 次の状態:
@@ -109,38 +109,42 @@ class ParticleFilter
    x_t2 = t1 < @sim_timesteps - 1 ? xmodel_t2 : xmodel_t1
    #ap xm_t1
    x_pre = 0.0
-   if train.size > 0
+   if train.size > 1 
     #x_pre = @current_pre + ((solar * ratio - x_t0) + (xt_n1 - x_t0))/2.0 + w[0]
     #x_pre = @current_pre + (((solar - x_t0) + (xt_n1 - solar))/2.0 + (xt_n1 - x_t0))/2.0 + w[0]
     #x_pre = solar + (solar - @model_data[t1]) + ((solar - x_t0) + (xt_n1 - solar))/2.0 + w[0]
-    #delta = average_train_power(t1) - x_t1 + average_train_power(t1 + 1) - x_t2
-    delta = 0
-    x_pre = solar + (xmodel_t2 - xmodel_t1) + delta + w[0] # Normal state transition formula
+    #delta = average_train_power(t1) +  average_train_power(t1 + 1)
+    delta = (average_train_power(t1) - solar + average_train_power(t1 + 1) - x_t2) / 1.0
+    #x_pre = xmodel_t2 + ((solar - xmodel_t1) + delta)/3.0 + w[0] # Normal state transition formula
+    x_pre = x_t1 + (xmodel_t2 - xmodel_t1) + delta + w[0] # Normal state transition formula
     #x_pre = @current_pre + (x_t0 - xt_n1) + w[0]
    else
     #delta = average_train_power(t1) +  average_train_power(t1 + 1)
-    delta = 0
-    x_pre = solar + xmodel_t2 - xmodel_t1 + w[0]
+    delta = (average_train_power(t1) - solar + average_train_power(t1 + 1) - x_t2) / 1.0
+    #delta = 0
+    #x_pre = xmodel_t2 + ((solar - xmodel_t1) + delta)/3.0 + w[0] # Normal state transition formula
+    x_pre = x_t1 + xmodel_t2 - xmodel_t1 + w[0]
     #p "crnt_pre: #{@current_pre}, solar:#{solar}, x_t0: #{x_t0}, xm_t1: #{xm_t1}"
     #x_pre = @current_pre + (((solar - x_t0) + (xm_t1 - solar))/2.0 + (xm_t1 - x_t0))/2.0 + w[0]
     #x_pre = @current_pre + ((solar * ratio - x_t0.to_f) + (xm_t1 - x_t0))/2.0 + w[0]
    end
    return x_pre
 
-  else # 初回の予測
-   x_pre = @current_pre +  (xmodel_t1 * 1.2  - x_t1 * 1.0) +  w[0]
-   return x_pre
-  end
+  #else # 初回の予測
+   #x_pre = x_t1 + xmodel_t2 - xmodel_t1 + w[0]
+   #x_pre = @current_pre +  (xmodel_t1 * 1.2  - x_t1 * 1.0) +  w[0]
+   #return x_pre
+  #end
  end
 
  def observe x
   # 20.0w幅で観測(適当に設定)
   # TODO: 天候の実績値のデータからの観測
-  pn = [0.0, 10.0, 20.0]
+  pn = [0.0, 0.0, 0.0]
   #pn = [@current_pre - 10.0, @current_pre, @current_pre + 10.0]
   #pn = [@current_pre-10.0, @current_pre, @current_pre+10.0]
   # noise sigma = 3
-  v = @rbm.generate_rand_normval 1.0, 3.0, 3
+  v = @rbm.generate_rand_normval 0.0, 1.0, 3
   #p x
   y = v.map.with_index{|m, i| x - pn[i] + v[i]}
   return y
@@ -256,10 +260,11 @@ class ParticleFilter
   y = self.observe x_t1
   ws = Array.new(@particles_number,1.0)
   @current_ps, ws = self.pf_sir_one_step @current_ps, ws, y, x_t0, time
-  @current_pre = @current_ps.inject(0){|sum,p| sum+=p}/@particles_number
+  @current_pre = @current_ps.inject(0){|sum,p| sum+=p}/@current_ps.size
+
   result = @current_pre  
   @current_pre = x_t0 # 実測値に置き換える
-  @pre_solars.push x_t0
+  #@pre_solars.push x_t0
   #@pre_solars.unshift @current_pre
   #@pre_solars.pop if @pre_solars.size > 5
   #@pre_ps.unshift @current_ps

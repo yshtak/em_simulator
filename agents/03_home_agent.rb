@@ -65,7 +65,6 @@ class HomeAgent
  # TODO: 例外処理の追加
  def select_weather type
   root = File.expand_path File.dirname __FILE__
-  print type 
   tmp_model = (0..SIM_INTERVAL-1).map{|x| 0.0}
   case type
   when SUNNY 

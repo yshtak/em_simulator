@@ -2,7 +2,7 @@ DIRROOT = File.expand_path File.dirname __FILE__
 require 'yaml'
 require "#{DIRROOT}/agents/03_home_agent"
 #require "#{DIRROOT}/filter/02_particle_filter"
-require "#{DIRROOT}/filter/03_particle_filter"
+require "#{DIRROOT}/filter/04_particle_filter"
 require "awesome_print"
 require "#{DIRROOT}/config/simulation_data.rb"
 #: 初期設定
@@ -23,7 +23,7 @@ solarfile = open("#{DIRROOT}/data/solar/nagoya/0.csv")
 demandfile = open("#{DIRROOT}/data/demand/nagoya/0.csv")
 demand_list = demandfile.readlines
 solar_list = solarfile.readlines
-sim_day = 10
+sim_day = 20
 for count in 1..sim_day do
  demands = demand_list[count-1].split(',').map{|x| x.to_f}
  solars = solar_list[count-1].split(',').map{|x| x.to_f}

@@ -7,7 +7,7 @@ mad = 0.0
 msd = 0.0
 eps = 0.0
 ave = 0.0
-sim_day = 10
+sim_day = 20
 
 CSV.open("./result/merge.csv",'w') do |writer|
  writer << ["Buy","Battery","Predict","Real","Sell"]

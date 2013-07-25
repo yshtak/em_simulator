@@ -3,5 +3,6 @@ module SimulationData
  CLOUDY=1
  RAINY=2
  TEMP=100
+ TIMESTEP=15
+ SIM_DAYS=365
 end
-
