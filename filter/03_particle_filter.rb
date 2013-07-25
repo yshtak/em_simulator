@@ -85,7 +85,7 @@ class ParticleFilter
  # solar： 現在の実測値 (given
  # t1: 現在時刻
  # solar： 現在時刻の発電量
- def transition x_t0, t1, solar 
+ def transition x_t1, t1, solar 
   w = @rbm.generate_rand_normval @mean, @sigma, 1
   xmodel_t1 = 0.0
   xmodel_t2 = 0.0
@@ -105,19 +105,19 @@ class ParticleFilter
    # @current_pre: 現在時刻の実測値
    #xt_p2 = smooth_train t1 - 2 # ２つ前の時刻の平均
    #xt_p1 = smooth_train t1 - 1 # １つ前の時刻の平均
-   #xt_crt = smooth_power t1
-   #xt_n1 = t1 < @sim_timesteps - 1 ? smooth_power(t1 + 1): smooth_power(t1)
+   #xt_crt = average_train_power t1
+   x_t2 = t1 < @sim_timesteps - 1 ? xmodel_t2 : xmodel_t1
    #ap xm_t1
    x_pre = 0.0
    if train.size > 0
     #x_pre = @current_pre + ((solar * ratio - x_t0) + (xt_n1 - x_t0))/2.0 + w[0]
     #x_pre = @current_pre + (((solar - x_t0) + (xt_n1 - solar))/2.0 + (xt_n1 - x_t0))/2.0 + w[0]
     #x_pre = solar + (solar - @model_data[t1]) + ((solar - x_t0) + (xt_n1 - solar))/2.0 + w[0]
-    delta = smooth_power(t1) +  smooth_power(t1 + 1)
+    delta = average_train_power(t1) - x_t1 + average_train_power(t1 + 1) - x_t2
     x_pre = solar + (xmodel_t2 - xmodel_t1) + delta + w[0] # Normal state transition formula
     #x_pre = @current_pre + (x_t0 - xt_n1) + w[0]
    else
-    delta = smooth_power(t1) +  smooth_power(t1 + 1)
+    delta = average_train_power(t1) +  average_train_power(t1 + 1)
     x_pre = solar + xmodel_t2 - xmodel_t1 + w[0]
     #p "crnt_pre: #{@current_pre}, solar:#{solar}, x_t0: #{x_t0}, xm_t1: #{xm_t1}"
     #x_pre = @current_pre + (((solar - x_t0) + (xm_t1 - solar))/2.0 + (xm_t1 - x_t0))/2.0 + w[0]
@@ -346,8 +346,8 @@ class ParticleFilter
  end
 
  # ある時刻での学習データからの予測値計算（３日分）
- def smooth_power time
-  chunk_size = 3 # 学習データのサイズ（日数）
+ def average_train_power time
+  chunk_size = @config[:chunk_size] # 学習データのサイズ（日数）
   train = @trains[@weather][:data]
   train_size = train.size
    
