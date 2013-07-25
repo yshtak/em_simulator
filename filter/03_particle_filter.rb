@@ -349,6 +349,7 @@ class ParticleFilter
  def average_train_power time
   chunk_size = @config[:chunk_size] # 学習データのサイズ（日数）
   train = @trains[@weather][:data]
+  ap train
   train_size = train.size
    
   #ap train.size
