@@ -369,7 +369,8 @@ class ParticleFilter
    end
   rescue => e
    #e.backtrace
-   print "<<ERROR: #{time} does not exist model.>>"
+   print "<<ERROR: #{time} does not exist model.>>\n"
+   print e.backtrace
   end
  end
  
