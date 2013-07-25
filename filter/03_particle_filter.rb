@@ -1,9 +1,24 @@
+require 'pry'
 require 'awesome_print'
-# 
+require "#{File.expand_path File.dirname __FILE__}/../config/simulation_data"
+#==============================================================
 # Particle Filter
 #
+# 2013-07-25
+# 季節変動を加味したパーティクルフィルタ
+# 季節変動には天候別の過去N日のデータを参照して行う．
+# 02との変更点:
+#  - chunk_sizeの指定可能
+#  - 状態方程式(季節変動が加味されたバージョン)
+# 関連する論文:
+#  現在作成中... 
+#
+# 参考URL: http://satomacoto.blogspot.jp/2012/11/python.html
+# 
+#===============================================================
 class ParticleFilter
- attr_accessor :trains,:config # for test
+ attr_accessor :model_data,:trains,:config, :weather # for test
+ include SimulationData
 
  def initialize config={}
   @config = {
@@ -11,8 +26,9 @@ class ParticleFilter
    mean: 0.0,
    sigma: 1.0,
    model_data: [],
-   weather: "none",
-   timesteps: 96
+   weather: -1,
+   timesteps: 96,
+   chunk_size: 3
   }.merge(config)
   @rbm = RandomBoxMuller.new config={rand_number: @config[:particles_number]}
   @mean = @config[:mean]
@@ -26,10 +42,10 @@ class ParticleFilter
   @pre_solars = []
   @model_data = @config[:model_data]
   @trains = {
-    "sunny" => {data: [], timestamp: ""},
-    "cloudy" => {data: [], timestamp: ""}, 
-    "rainny" => {data: [],  timestamp: ""},
-    'temp' => {data: [], timestamp: ""}
+    SUNNY => {data: [], timestamp: ""},
+    CLOUDY => {data: [], timestamp: ""}, 
+    RAINY => {data: [],  timestamp: ""},
+    TEMP => {data: [], timestamp: ""}
   } # 学習データの保持(３日分)
   @sim_timesteps = @config[:timesteps]
   @weather = @config[:weather]
@@ -54,7 +70,7 @@ class ParticleFilter
   @pre_solars.clear
   @pre_ps = []
   @current_ps = (1..@particles_number).map{|a| @rbm.rnd_v 5.0, 1.0 }
-  #@trains['temp'][:data] = []
+  #@trains[TEMP][:data] = []
  end
 
  # 天候の初期化
@@ -62,19 +78,27 @@ class ParticleFilter
   @weather = weather
  end
 
- # x_t0： 一つ前の予測値
- # xm_t1： 一つ先のモデル値
- # x_pre： 一つ先の予測値
- # solar： 現在の実測値
+ # x_t0： 一つ前のパーティクル値 (given
+ # xmodel_t1：現在時刻のモデル値 (given
+ # xmodel_t2：一つ先のモデル値 (given
+ # x_pre： 一つ先の予測値 求める値
+ # solar： 現在の実測値 (given
  # t1: 現在時刻
  # solar： 現在時刻の発電量
- # @currnet_pre：ここでは前の実測値
- def transition x_t0, t1, solar
+ def transition x_t0, t1, solar 
   w = @rbm.generate_rand_normval @mean, @sigma, 1
-  xm_t1 = @model_data.size - 1 > t1+1 ? @model_data[t1+1] : @model_data[t1]
+  xmodel_t1 = 0.0
+  xmodel_t2 = 0.0
+  if @model_data.size - 1 > t1 + 1
+   xmodel_t1 = @model_data[t1]
+   xmodel_t2 = @model_data[t1+1]
+  else
+   xmodel_t1 = @model_data[t1-1]
+   xmodel_t2 = @model_data[t1]
+  end
   ###
   if @pre_solars.size > 1 # 
-   ratio = (solar+1.0) / (@model_data[t1]+1.0)
+   #ratio = (solar+1.0) / (@model_data[t1]+1.0)
    train = @trains[@weather][:data]
    # 次の状態:
    # 現在の実測値 + (現在の実測値 - 一つ前の予測値 + 一つ先の実測値 - 一つ前の実測値)/2.0
@@ -82,19 +106,19 @@ class ParticleFilter
    #xt_p2 = smooth_train t1 - 2 # ２つ前の時刻の平均
    #xt_p1 = smooth_train t1 - 1 # １つ前の時刻の平均
    #xt_crt = smooth_power t1
-   xt_n1 = t1 < @sim_timesteps - 1 ? smooth_power(t1 + 1): smooth_power(t1)
+   #xt_n1 = t1 < @sim_timesteps - 1 ? smooth_power(t1 + 1): smooth_power(t1)
    #ap xm_t1
    x_pre = 0.0
    if train.size > 0
     #x_pre = @current_pre + ((solar * ratio - x_t0) + (xt_n1 - x_t0))/2.0 + w[0]
     #x_pre = @current_pre + (((solar - x_t0) + (xt_n1 - solar))/2.0 + (xt_n1 - x_t0))/2.0 + w[0]
-    x_pre = solar + (solar - @model_data[t1]) + ((solar - x_t0) + (xt_n1 - solar))/2.0 + w[0]
-
-    #dump = {:xtn1 => xt_n1, :xmt1 => xm_t1, :solar => solar,:raito => ratio, :xpre => x_pre}
-    #ap dump
+    #x_pre = solar + (solar - @model_data[t1]) + ((solar - x_t0) + (xt_n1 - solar))/2.0 + w[0]
+    delta = smooth_power(t1) +  smooth_power(t1 + 1)
+    x_pre = solar + (xmodel_t2 - xmodel_t1) + delta + w[0] # Normal state transition formula
     #x_pre = @current_pre + (x_t0 - xt_n1) + w[0]
    else
-    x_pre = solar + ((solar - x_t0) + (xm_t1 - solar))/2.0 + w[0]
+    delta = smooth_power(t1) +  smooth_power(t1 + 1)
+    x_pre = solar + xmodel_t2 - xmodel_t1 + w[0]
     #p "crnt_pre: #{@current_pre}, solar:#{solar}, x_t0: #{x_t0}, xm_t1: #{xm_t1}"
     #x_pre = @current_pre + (((solar - x_t0) + (xm_t1 - solar))/2.0 + (xm_t1 - x_t0))/2.0 + w[0]
     #x_pre = @current_pre + ((solar * ratio - x_t0.to_f) + (xm_t1 - x_t0))/2.0 + w[0]
@@ -102,35 +126,29 @@ class ParticleFilter
    return x_pre
 
   else # 初回の予測
-   x_pre = @current_pre +  (xm_t1 * 1.2  - x_t0 * 1.0) +  w[0]
+   x_pre = @current_pre +  (xmodel_t1 * 1.2  - x_t0 * 1.0) +  w[0]
    return x_pre
   end
  end
 
  def observe x
   # 20.0w幅で観測(適当に設定)
+  # TODO: 天候の実績値のデータからの観測
   pn = [0.0, 10.0, 20.0]
   #pn = [@current_pre - 10.0, @current_pre, @current_pre + 10.0]
   #pn = [@current_pre-10.0, @current_pre, @current_pre+10.0]
   # noise sigma = 3
   v = @rbm.generate_rand_normval 1.0, 3.0, 3
   #p x
-  y = v.map.with_index{|m,i| x - pn[i] + v[i]}
+  y = v.map.with_index{|m, i| x - pn[i] + v[i]}
   return y
  end
 
  def likehood y, x
-  # DESCRIPTION: Sigmaの値はとりあえず1にする.意味はよくわからない. 
+  # DESCRIPTION: sigmaの値の定義はよくわからない
   sigma = 1.0
   tmp_ys = observe x
   dot = (y.map.with_index{|m,index| Math.sqrt (m - tmp_ys[index])**2}).inject(0){|sum,n| sum += n}
-  #dot = (y.map.with_index{|m,index| (m - tmp_ys[index])**2}).inject(0){|sum,n| sum += n}
-  #y.map.with_index{|v,index| p (v - tmp_ys[index])**2; p v; p tmp_ys[index] }
-  #p tmp_ys
-  #p y
-  #p x
-  #dot = [x - pn[0],x - pn[1], x-pn[1] ].inject(0){|sum,l|sum += l*l }
-  #p dot/sigma
   return Math.exp(dot/sigma)
  end
 
@@ -161,8 +179,12 @@ class ParticleFilter
   end
 
   # リサンプルする
-  weight_samples.each_with_index do |num, index|
-   (1..num).each{|j| x_resample << xs[index] }
+  begin
+   weight_samples.each_with_index do |num, index|
+    (1..num).each{|j| x_resample << xs[index] }
+   end
+  rescue
+   #p tmp_rand_sum
   end
 
   w_resample = Array.new(xs.size,1.0)
@@ -242,6 +264,7 @@ class ParticleFilter
   #@pre_ps.pop if @pre_ps.size > 3
   #print @current_ps.join(','),"\n"
   train_per_step x_t0 # 学習する
+
   return result < 0.0 ? 0.0 : result # 0以下は0にする
  end
 
@@ -318,7 +341,7 @@ class ParticleFilter
   begin
    return @trains[type][:data].inject(0.0){|acc, data| acc += data  }
   rescue
-   print "<<ERROR: #{type} does not exist model.>>"
+   print "<<ERROR: TYPE CODE #{type} does not exist model.>>\n"
   end
  end
 
@@ -328,6 +351,7 @@ class ParticleFilter
   train = @trains[@weather][:data]
   train_size = train.size
    
+  #ap train.size
   begin 
    # 学習データが最大スタックされているとき
    if train_size > @sim_timesteps * chunk_size - 1
@@ -344,30 +368,34 @@ class ParticleFilter
     return result
    end
   rescue => e
-   print "<<ERROR: #{type} does not exist model.>>"
+   #e.backtrace
+   print "<<ERROR: #{time} does not exist model.>>"
   end
  end
  
- # 学習する（毎時間毎）
+ # 学習する（毎時間Check）
+ # data: 現在時刻のある曇の太陽光発電量
+ # chunk_size: 学習する日数
+ # train_size: 学習データのサイズ to check the chunk_size for updating trains 
+ # tmp_train: 1回分の学習データ格納場所(1日毎に初期化)
  def train_per_step data
-  chunk_size = 3
+  chunk_size = @config[:chunk_size].nil? ? 3 : @config[:chunk_size] 
   train_size = @trains[@weather][:data].size # pointer
-  tmp_train = @trains['temp'][:data] # pointer
+  tmp_train = @trains[TEMP][:data] # pointer
 
-  @trains['temp'][:data] << data
-  
+  @trains[TEMP][:data] << data
   if tmp_train.size == @sim_timesteps
-   # ３日分の学習データがすでにあるかどうか調べる
+   # N日分の学習データがすでにあるかどうか調べる
    if train_size < chunk_size * @sim_timesteps
-    @trains[@weather][:data].concat @trains['temp'][:data].clone # 結合
+    @trains[@weather][:data].concat @trains[TEMP][:data].clone # 結合
    else
     # ３日分の学習データが存在する場合
     @trains[@weather][:data].slice!(0,@sim_timesteps)
-    @trains[@weather][:data].concat @trains['temp'][:data].clone # 結合
+    @trains[@weather][:data].concat @trains[TEMP][:data].clone # 結合
    end
-   p "#{@trains['temp'][:data].size} --- #{@trains[@weather][:data].size}"
-   @trains['temp'][:data] = [] # tmp_trainの削除
-   p "#{@trains['temp'][:data].size} --- #{@trains[@weather][:data].size}"
+   #p "#{@trains[TEMP][:data].size} --- #{@trains[@weather][:data].size}"
+   @trains[TEMP][:data] = [] # tmp_trainの削除
+   #p "#{@trains[TEMP][:data].size} --- #{@trains[@weather][:data].size}"
   end
  end
 
