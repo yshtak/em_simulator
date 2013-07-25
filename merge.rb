@@ -7,10 +7,11 @@ mad = 0.0
 msd = 0.0
 eps = 0.0
 ave = 0.0
+sim_day = 10
 
 CSV.open("./result/merge.csv",'w') do |writer|
  writer << ["Buy","Battery","Predict","Real","Sell"]
- (0..365/5-1).each{|num|
+ (0..sim_day/5-1).each{|num|
   file = open("./result/result_#{num}.csv")
   tmp_result = []
   file.each do |line|
@@ -32,7 +33,7 @@ end
 # mapeの計算
 predicts = []
 reals = []
-(0..365/5-1).each{|num|
+(0..sim_day/5-1).each{|num|
  file = open("./result/result_#{num}.csv","r")
  file.each do |line|
   data = line.split(",")

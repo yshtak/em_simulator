@@ -23,8 +23,8 @@ solarfile = open("#{DIRROOT}/data/solar/nagoya/0.csv")
 demandfile = open("#{DIRROOT}/data/demand/nagoya/0.csv")
 demand_list = demandfile.readlines
 solar_list = solarfile.readlines
-
-for count in 1..365 do
+sim_day = 10
+for count in 1..sim_day do
  demands = demand_list[count-1].split(',').map{|x| x.to_f}
  solars = solar_list[count-1].split(',').map{|x| x.to_f}
  sum_solar = solars.inject(0.0){|x,sum|sum += x}

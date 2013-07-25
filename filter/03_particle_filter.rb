@@ -113,11 +113,13 @@ class ParticleFilter
     #x_pre = @current_pre + ((solar * ratio - x_t0) + (xt_n1 - x_t0))/2.0 + w[0]
     #x_pre = @current_pre + (((solar - x_t0) + (xt_n1 - solar))/2.0 + (xt_n1 - x_t0))/2.0 + w[0]
     #x_pre = solar + (solar - @model_data[t1]) + ((solar - x_t0) + (xt_n1 - solar))/2.0 + w[0]
-    delta = average_train_power(t1) - x_t1 + average_train_power(t1 + 1) - x_t2
+    #delta = average_train_power(t1) - x_t1 + average_train_power(t1 + 1) - x_t2
+    delta = 0
     x_pre = solar + (xmodel_t2 - xmodel_t1) + delta + w[0] # Normal state transition formula
     #x_pre = @current_pre + (x_t0 - xt_n1) + w[0]
    else
-    delta = average_train_power(t1) +  average_train_power(t1 + 1)
+    #delta = average_train_power(t1) +  average_train_power(t1 + 1)
+    delta = 0
     x_pre = solar + xmodel_t2 - xmodel_t1 + w[0]
     #p "crnt_pre: #{@current_pre}, solar:#{solar}, x_t0: #{x_t0}, xm_t1: #{xm_t1}"
     #x_pre = @current_pre + (((solar - x_t0) + (xm_t1 - solar))/2.0 + (xm_t1 - x_t0))/2.0 + w[0]
@@ -349,20 +351,18 @@ class ParticleFilter
  def average_train_power time
   chunk_size = @config[:chunk_size] # 学習データのサイズ（日数）
   train = @trains[@weather][:data]
-  ap train
   train_size = train.size
-   
   #ap train.size
   begin 
    # 学習データが最大スタックされているとき
    if train_size > @sim_timesteps * chunk_size - 1
-    return (0..chunk_size-1).inject(0.0){|acc,i| acc += train[time+(i*@sim_timesteps)]}/(chunk_size.to_f)
+    return (0..chunk_size-1).inject(0.0){|acc,i| acc += train[time+(i*@sim_timesteps) - 1]}/(chunk_size.to_f)
    else # 学習データが最大スタックされてないとき
     result = 0.0
     cnt = 0.0
     for i in (0..chunk_size-1)
      break unless train_size > time + (@sim_timesteps*i)
-     result += train[time + @sim_timesteps * i]
+     result += train[time + @sim_timesteps * i - 1]
      cnt += 1
     end
     result /= cnt.to_f if cnt != 0
@@ -372,7 +372,9 @@ class ParticleFilter
    #e.backtrace
    print "<<ERROR: #{time} does not exist model.>>\n"
    print e.backtrace
+   binding.pry
   end
+
  end
  
  # 学習する（毎時間Check）
