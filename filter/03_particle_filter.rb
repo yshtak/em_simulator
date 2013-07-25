@@ -126,7 +126,7 @@ class ParticleFilter
    return x_pre
 
   else # 初回の予測
-   x_pre = @current_pre +  (xmodel_t1 * 1.2  - x_t0 * 1.0) +  w[0]
+   x_pre = @current_pre +  (xmodel_t1 * 1.2  - x_t1 * 1.0) +  w[0]
    return x_pre
   end
  end
