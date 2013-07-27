@@ -1,5 +1,8 @@
 require 'csv'
 require 'matrix'
+require './config/simulation_data'
+
+include SimulationData
 #output = open("./result/merge.csv",'w')
 count = 0
 mape = 0.0
@@ -7,7 +10,7 @@ mad = 0.0
 msd = 0.0
 eps = 0.0
 ave = 0.0
-sim_day = 20
+sim_day = SIM_DAYS
 
 CSV.open("./result/merge.csv",'w') do |writer|
  writer << ["Buy","Battery","Predict","Real","Sell"]

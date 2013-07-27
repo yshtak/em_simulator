@@ -4,7 +4,7 @@
 module Particle
  ## ガウス分布関数
  def gaussian x, mu, sigma
-  return Math.exp(-(x-mu)/2*sigma))/Math.sqrt(2*Math::PI*sigma)
+  return Math.exp(-(x-mu)/2*sigma)/Math.sqrt(2 * Math::PI * sigma)
  end
 
  class Particle
