@@ -13,7 +13,9 @@ ave = 0.0
 sim_day = SIM_DAYS
 
 CSV.open("./result/merge.csv",'w') do |writer|
- writer << ["Buy","Battery","Predict","Real","Sell"]
+ header = ["Buy","Battery","Predict","Real","Sell","Weather"]
+ col_size = header.size
+ writer << header
  (0..sim_day/5-1).each{|num|
   file = open("./result/result_#{num}.csv")
   tmp_result = []
@@ -23,7 +25,7 @@ CSV.open("./result/merge.csv",'w') do |writer|
    end
    count += 1
    if tmp_result.size == 96
-    onedata = tmp_result.inject(Vector.elements Array.new(5,0)){|sum, x| sum += x} / 96.0
+    onedata = tmp_result.inject(Vector.elements Array.new(col_size,0)){|sum, x| sum += x} / 96.0
 
     writer << (onedata).to_a
     tmp_result = []

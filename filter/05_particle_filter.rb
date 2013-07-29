@@ -9,6 +9,10 @@ require "#{File.expand_path File.dirname __FILE__}/../lib/particle"
 #
 # 2013-07-26(途中)
 # 2013-07-27(完成)
+# 
+# Usage:
+#  predict_next_value(solar, time)
+#   
 #
 ##################################################################
 class ParticleFilter
@@ -86,22 +90,17 @@ class ParticleFilter
  def predict solar_t1, t1 
   xmodel_t2 = @ave_models[@weather][t1+1] # 時刻t1+1のモデルデータ
   xmodel_t1 = @ave_models[@weather][t1] # 時刻t1のモデルデータ
-  #xmodel_t2 = @trains[@weather][t1+1] # 時刻t1+1のモデルデータ
-  #xmodel_t1 = @trains[@weather][t1] # 時刻t1のモデルデータ
-  update_next_true_value solar_t1, t1 # 次の値の予測値を計算 @next_true_particleの更新
-  #season_value = (average_train_power(t1) - solar_t1 + average_train_power(t1 + 1) - solar_t2) / 1.0 # 季節変動変数 
-  season_value = (average_train_power(t1) - xmodel_t1 + average_train_power(t1 + 1) - xmodel_t2) / 1.0 # 季節変動変数 
+  season_value = (average_train_power(t1) - solar_t1 + average_train_power(t1 + 1) - average_train_power(t1+1)) / 1.0 # 季節変動変数 
+  #season_value = (average_train_power(t1) - xmodel_t1 + average_train_power(t1 + 1) - xmodel_t2) / 1.0 # 季節変動変数 
+  #season_value = (average_train_power(t1+1) - average_train_power(t1)) / 1.0 # 季節変動変数 
+  #season_value = 0.0
+
   # 状態方程式を割り当てる
   for i in 0..@particles.size-1 do
    # 状態遷移
-   #@particles[i].value = @state_eq.call(@particles[i].value, (xmodel_t2 - xmodel_t2), season_value, \
-   #                                     @rbm.generate_rand_normval(0.0,1.0,1)[0]*@system_variance)
-   #@particles[i].value = solar_t1 + (xmodel_t2 - xmodel_t2) + @rbm.generate_rand_normval(0.0,1.0,1)[0] * @system_variance
-   #@particles[i].value = @particles[i].value + (xmodel_t2 - xmodel_t2) + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0] * @system_variance
-   #@particles[i].value = solar_t1 + (xmodel_t2 - xmodel_t2) + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0]
-   #@particles[i].value = @next_true_particle.value + (xmodel_t2 - xmodel_t2) + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0]
-   @particles[i].value = @next_true_particle.value + (xmodel_t2 - xmodel_t2) + @rbm.generate_rand_normval(0.0,1.0,1)[0]
-   #@particles[i].value = @particles[i].value + (xmodel_t2 - xmodel_t2) + @rbm.generate_rand_normval(0.0,1.0,1)[0]
+   @particles[i].value = @particles[i].value + (xmodel_t2 - xmodel_t1) + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0]
+   #@particles[i].value = @particles[i].value + ((xmodel_t2 - xmodel_t1) + season_value)/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
+   #ap "Index[#{t1},#{@weather}]: model data:#{xmodel_t1}:ParticleValue:#{@particles[i].value}: Actual Data:#{solar_t1}"
   end
   return true 
  end
@@ -113,14 +112,19 @@ class ParticleFilter
   ## 平均的なモデル及び最近のデータのモデルを利用
   # 観測地点
   obs = [0]
+  sigma = 5.0
   v = @rbm.generate_rand_normval 0.0, 1.0, 3 
   sum = 0.0
   variance = 5.0 # 実験的に求める
+  #mu = @particles.inject(0.0){|acc, x|acc+=x.value}/@particles.size
   obs.each_with_index do |point,index|
    y = particle.value - point + v[index] * variance
-   sum += Math.sqrt((@next_true_particle.value - y)**2)
+   #dist = Math.sqrt((@next_true_particle.value - particle.value)**2)
+   #sum += 1.0 + 1.0/(Math.sqrt(2.0*Math::PI) * sigma) * Math.exp(-dist*dist/(2.0*sigma*sigma))
+   sum +=  (Math.exp(-(@next_true_particle.value - particle.value)/(2.0*sigma**2)))/(Math.sqrt(Math::PI * sigma**2))
+   #sum += 1.0 + 1.0/(Math.sqrt(2.0*Math::PI) * sigma) * Math.exp(-dist*dist/(2.0*sigma*sigma))
   end
-  return sum
+  return sum/obs.size
  end
 
  #== 重みの決定づけ関数
@@ -136,7 +140,8 @@ class ParticleFilter
   end
   # 重みの正規化
   for i in 0..@particles.size-1 do
-   @particles[i].weight = (@particles[i].weight / sum_weight) * @particles.size
+   @particles[i].weight = (@particles[i].weight / sum_weight)
+   #@particles[i].weight = (@particles[i].weight / sum_weight) * @particles.size
   end
   return true
  end
@@ -173,6 +178,7 @@ class ParticleFilter
   self.weight
   result = self.measure
   ###
+  update_next_true_value solar, time
   ###
   return result
  end
@@ -232,6 +238,13 @@ class ParticleFilter
  # - weather: 天候
  def set_weather weather
   @weather = weather
+ end
+
+ ##
+ # パーティクルの初期化
+ # 1日毎に行う 
+ def particles_zero
+  @particles.map!{|par| Particle.new(0.0,1.0)}
  end
 
  ###

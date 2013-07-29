@@ -467,6 +467,7 @@ class HomeAgent
  # 1日の初期化
  def init_date
   @clock = 0
+  @filter.particles_zero
   #@filter.init_data if !@filter.nil? && !@filter.eql?("normal")
  end
 
