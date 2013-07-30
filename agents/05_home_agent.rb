@@ -517,7 +517,6 @@ class HomeAgent
   else ## 発電量が下回るとき（主に雨とか曇りに起きやすい）
    if @battery + (sum_demand - sum_solar ) < @max_strage*0.4 # 最大容量を超えないとき
     tmp_buy = (sum_demand - sum_solar)
-    ap "#{tmp_buy}, battery: #{@battery}"
     one = per_demand.call tmp_buy # ４時間分割
    else # 最大容量を超えるとき 
     tmp_buy =  @max_strage * 0.4 - @battery
