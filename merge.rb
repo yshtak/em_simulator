@@ -22,6 +22,7 @@ CSV.open("./result/merge.csv",'w') do |writer|
   file.each do |line|
    if count != 0
     tmp_result << Vector.elements(line.split(',').map{|x|x.to_f})
+    p tmp_result.size
    end
    count += 1
    if tmp_result.size == 96

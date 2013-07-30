@@ -5,6 +5,8 @@ require "#{File.expand_path File.dirname __FILE__}/../config/simulation_data"
 # Home Agent v5.0
 # 2013-07-27
 #  - 新しいParticle Filterを導入
+# 2013-07-30
+#  - 夜間に電力をまとめて買う戦略の導入
 #
 #========================================================
 class HomeAgent
@@ -35,6 +37,20 @@ class HomeAgent
   @clock = 0
   #@sells = (0..SIM_INTERVAL-1).map{|i| 0.0}
   @sells = 0.0
+  # 学習データ
+  @trains={
+   demands:{
+    SUNNY => [],
+    RAINY => [],
+    CLOUDY => []
+   },
+   solars:{
+    SUNNY => [],
+    RAINY => [],
+    CLOUDY => []
+   }
+  }
+  @buy_times = Array.new((1440/TIMESTEP),0.0)
  end
 
  # 需要量のセット
@@ -56,7 +72,8 @@ class HomeAgent
   predicts = [0.0] # 予測値(実験用)
   reals = []
   sells = [] # simdatas のsellsのポインター
-  simdatas = {buy: results, battery: bs, predict: predicts, real: reals, sell: sells} # 結果
+  buys = []
+  simdatas = {buy: results, battery: bs, predict: predicts, real: reals, buy: buys, sell: sells} # 結果
   for cnt in 0..(1440/TIMESTEP-1) do
    bs << @battery
    if @filter.nil? # Filter使わないとき
@@ -131,6 +148,7 @@ class HomeAgent
      crnt_demand = @demands[cnt]
      next_demand = @demands[cnt+1]
      #power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
+     now_battery = @battery
      power_value = buy_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
      #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
      #sell_value = sell_power # 余剰電力を売る
@@ -140,9 +158,17 @@ class HomeAgent
      sells << @sells
      predicts << next_solar
      reals << crnt_solar
+     buys << (power_value - @battery > 0.0 ? power_value - @battery : 0.0)
     else # 夜中と早朝の戦略
      #ap cnt
-     @filter.train_per_step @solars[cnt]
+     @filter.train_per_step @solars[cnt] # 学習はする（つじつま合わせ）
+
+     reals << @solars[cnt]
+     next_solar << 0.0 
+     
+     buys << @buy_times[cnt]
+     sells << 0.0
+=begin
      next_solar = @filter.ave_models[@weather][cnt]
      predicts << next_solar
      reals << @solars[cnt]
@@ -155,6 +181,7 @@ class HomeAgent
       results << 0.0
       sells << sell_power 
      end
+=end
     end
    end
   end
@@ -468,9 +495,31 @@ class HomeAgent
  def init_date
   @clock = 0
   @filter.particles_zero
+  train_data_per_day
   #@filter.init_data if !@filter.nil? && !@filter.eql?("normal")
  end
 
+ ## 夜間にチェックする
+ def select_time_and_value_to_buy
+  cnt = 0
+  chunk = 0
+  trains = @trains[:demands][@weather]
+  sum = 0.0
+  while trains.size > 0 
+   @trains[:demands][@weather]
+   cnt += 1
+   if cnt % (1440/TIMESTEP) == 0 && cnt / (1440/TIMESTEP) != 0
+    chunk += 1
+   end
+  end
+  sum /= chunk ## 次の日の電力需要
+  one = (sum/(4.0*(60/TIMESTEP)))
+  for i in 0..(4*((60/TIMESTEP))-1)
+   @buy_times[i] = one
+  end  
+  @may_get_solar = @trains[:solars][@weather].inject(0.0){|acc, x| acc+=x}
+  @may_get_solar
+ end
 
  #####
  # 天気予報のチェック
@@ -481,6 +530,18 @@ class HomeAgent
  end
 
  private
+
+ #####
+ # 一日ごとに学習していく
+ #
+ def train_data_per_day
+  @trains[:demands][@weather].concat @demands.clone
+  @trains[:solars][@weather].concat @solars.clone
+  if @chunk_size * (1440/TIMESTEP) < @trains[:demands][@weather].size
+   @trains[:demands][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1)
+   @trains[:solars][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1)
+  end
+ end
 
  # フィルターの初期化
  def filter_init type

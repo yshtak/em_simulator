@@ -90,15 +90,22 @@ class ParticleFilter
  def predict solar_t1, t1 
   xmodel_t2 = @ave_models[@weather][t1+1] # 時刻t1+1のモデルデータ
   xmodel_t1 = @ave_models[@weather][t1] # 時刻t1のモデルデータ
-  season_value = (average_train_power(t1) - solar_t1 + average_train_power(t1 + 1) - average_train_power(t1+1)) / 1.0 # 季節変動変数 
-  #season_value = (average_train_power(t1) - xmodel_t1 + average_train_power(t1 + 1) - xmodel_t2) / 1.0 # 季節変動変数 
+  #season_value = (average_train_power(t1) - solar_t1 + average_train_power(t1 + 1) ) / 1.0 # 季節変動変数 
+  #season_value = (average_train_power(t1) - solar_t1 + average_train_power(t1 + 1) - xmodel_t2) / 1.0 # 季節変動変数 
   #season_value = (average_train_power(t1+1) - average_train_power(t1)) / 1.0 # 季節変動変数 
-  #season_value = 0.0
+  #season_value = (average_train_power(t1) - @particles[i].value + average_train_power(t1+1) - xmodel_t2) / 2.0 # 季節変動変数 
+  #season_value = @next
+  season_value = 0.0
 
   # 状態方程式を割り当てる
   for i in 0..@particles.size-1 do
    # 状態遷移
-   @particles[i].value = @particles[i].value + (xmodel_t2 - xmodel_t1) + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0]
+   #@particles[i].value = @next_true_particle.value + (xmodel_t2 - xmodel_t1) + season_value #+ @rbm.generate_rand_normval(0.0,1.0,1)[0]
+   #@particles[i].value = @next_true_particle.value + (xmodel_t2 - xmodel_t1) + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0]
+   #@particles[i].value = @next_true_particle.value + (average_train_power(t1+1) - average_train_power(t1)) + @rbm.generate_rand_normval(0.0,1.0,1)[0]
+   #@particles[i].value = @next_true_particle.value + (xmodel_t2 - xmodel_t1 + (average_train_power(t1+1) - average_train_power(t1)))/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
+   @particles[i].value = @next_true_particle.value + xmodel_t2 - xmodel_t1 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
+   #@particles[i].value = @particles[i].value + (xmodel_t2 - xmodel_t1) + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0]
    #@particles[i].value = @particles[i].value + ((xmodel_t2 - xmodel_t1) + season_value)/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
    #ap "Index[#{t1},#{@weather}]: model data:#{xmodel_t1}:ParticleValue:#{@particles[i].value}: Actual Data:#{solar_t1}"
   end
@@ -173,12 +180,13 @@ class ParticleFilter
  #  - time: 現在の時刻
  ##
  def predict_next_value solar, time
+  update_next_true_value solar, time
   self.resample
   self.predict(solar, time) 
   self.weight
   result = self.measure
   ###
-  update_next_true_value solar, time
+
   ###
   return result
  end
@@ -194,9 +202,11 @@ class ParticleFilter
   xmodel_t1 = @ave_models[@weather][time]
   xmodel_t2 = @ave_models[@weather][time+1]
   dist = xmodel_t2 - xmodel_t1
-  season_value = (average_train_power(time) - x + average_train_power(time + 1)
-                  - xmodel_t2) / 1.0 # 季節変動変数 
-  @next_true_particle.value =  x + dist + season_value + @rbm.generate_rand_norm(0.0,1.0,1)[0] * @system_variance
+  season_value = (average_train_power(time+1)-average_train_power(time))/1.0
+  #season_value = (average_train_power(time) - x + average_train_power(time + 1)
+  #                - xmodel_t2) / 1.0 # 季節変動変数 
+  @next_true_particle.value =  x + dist + @rbm.generate_rand_norm(0.0,1.0,1)[0] 
+  #@next_true_particle.value =  x + dist + season_value + @rbm.generate_rand_norm(0.0,1.0,1)[0] 
  end
 
  ##
