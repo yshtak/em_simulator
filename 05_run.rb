@@ -15,7 +15,7 @@ ha = HomeAgent.new({filter: 'pf',address:'nagoya'})
 #buy_output = open('buy_result.csv','w')
 #battery_output = open('battery_result.csv','w')
 output = open('./result/result_0.csv','w')
-output.write("buy,battery,predict,real,sell\n")
+output.write("buy,battery,predict,real,sell,weather\n")
 number = 0 # 分割ナンバー
 
 solarfile = open("#{DIRROOT}/data/solar/nagoya/0.csv")

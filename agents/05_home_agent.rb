@@ -17,15 +17,17 @@ class HomeAgent
  def initialize cfg={}
   config = {
    filter: 'none', # 未来予測のためのフィルターのタイプ
-   max_strage: 4500.0, # 蓄電容量(Wh)
+   max_strage: 5000.0, # 蓄電容量(Wh)
    target: 2000.0, # 目標蓄電量(Wh)
    solars: [], # 15分毎の1日の電力発電データ
    demands: [], # 15分毎の1日の需要データ
    address: "unknown",
-   limit_power: 500.0
+   limit_power: 500.0,
+   chunk_size: 5
   }.merge(cfg)
   ap config
   # データの初期化
+  @chunk_size = config[:chunk_size] # 学習データサイズ
   @max_strage = config[:max_strage]
   @battery = 2000.0
   @address = config[:address]
@@ -50,7 +52,8 @@ class HomeAgent
     CLOUDY => []
    }
   }
-  @buy_times = Array.new((1440/TIMESTEP),0.0)
+  @buy_times = Array.new((1440/TIMESTEP),0.0) # 夜間に決定した間別の購入量配列
+  @may_get_solar = 0.0 # 次の日に得られる発電量
  end
 
  # 需要量のセット
@@ -61,8 +64,9 @@ class HomeAgent
 
  # 太陽光発電量をセット
  def set_solars datas
-  @solars.clear
-  @solars = datas
+  @solars=[]
+  @solars = datas.map{|x| x/2.0 } # 発電効率50%
+  
  end
 
  # 一日の行動をする
@@ -73,7 +77,7 @@ class HomeAgent
   reals = []
   sells = [] # simdatas のsellsのポインター
   buys = []
-  simdatas = {buy: results, battery: bs, predict: predicts, real: reals, buy: buys, sell: sells} # 結果
+  simdatas = {buy: results, battery: bs, predict: predicts, real: reals, sell: sells} # 結果
   for cnt in 0..(1440/TIMESTEP-1) do
    bs << @battery
    if @filter.nil? # Filter使わないとき
@@ -158,30 +162,15 @@ class HomeAgent
      sells << @sells
      predicts << next_solar
      reals << crnt_solar
-     buys << (power_value - @battery > 0.0 ? power_value - @battery : 0.0)
+     #results << (power_value - @battery > 0.0 ? power_value - @battery : 0.0)
     else # 夜中と早朝の戦略
-     #ap cnt
      @filter.train_per_step @solars[cnt] # 学習はする（つじつま合わせ）
-
      reals << @solars[cnt]
-     next_solar << 0.0 
-     
-     buys << @buy_times[cnt]
+     predicts << @solars[cnt]
+     results << @buy_times[cnt] # 予め買う予定の電力量の購入
+     @battery += @buy_times[cnt] # Battery更新
      sells << 0.0
-=begin
-     next_solar = @filter.ave_models[@weather][cnt]
-     predicts << next_solar
-     reals << @solars[cnt]
- 
-     if @battery < @target
-      results << @target - @battery
-      sells << 0.0
-      @battery = @target
-     else
-      results << 0.0
-      sells << sell_power 
-     end
-=end
+
     end
    end
   end
@@ -504,21 +493,44 @@ class HomeAgent
   cnt = 0
   chunk = 0
   trains = @trains[:demands][@weather]
-  sum = 0.0
-  while trains.size > 0 
-   @trains[:demands][@weather]
+  sum_demand = 0.0
+  while trains.size > cnt 
+   sum_demand += @trains[:demands][@weather][cnt]
    cnt += 1
    if cnt % (1440/TIMESTEP) == 0 && cnt / (1440/TIMESTEP) != 0
     chunk += 1
    end
   end
-  sum /= chunk ## 次の日の電力需要
-  one = (sum/(4.0*(60/TIMESTEP)))
+
+  sum_demand /= chunk ## 次の日の電力需要
+  per_demand = -> (value){ (value/(4.0*(60/TIMESTEP)))} # ４時間分割する方程式
+
+  sum_solar = @trains[:solars][@weather].inject(0.0){|acc, x| acc+=x}
+  sum_demand = @demands.inject(0.0){|acc,x| acc+=x}
+  ##################################################################
+  ## 夜間の電力購入の戦略
+  ##
+  ##@may_get_solar = sum_solar / (@trains[:solars][@weather].size / (1440/TIMESTEP))
+  one = 0.0
+  if sum_solar - sum_demand > 0.0 && trains.size > 0 && @trains[:solars][@weather].size > 0# 次の日の発電量と需要の差が
+   # 買わない
+  else ## 発電量が下回るとき（主に雨とか曇りに起きやすい）
+   if @battery + (sum_demand - sum_solar ) < @max_strage*0.4 # 最大容量を超えないとき
+    tmp_buy = (sum_demand - sum_solar)
+    ap "#{tmp_buy}, battery: #{@battery}"
+    one = per_demand.call tmp_buy # ４時間分割
+   else # 最大容量を超えるとき 
+    tmp_buy =  @max_strage * 0.4 - @battery
+    one = per_demand.call tmp_buy # 四時間分割
+   end
+  end
+  ap "明日の予測需要量：#{sum_demand}，明日の予測発電量：#{sum_solar}，ワンステップごとの購入量：#{one}" 
+  
+  # 買う時間を決定
   for i in 0..(4*((60/TIMESTEP))-1)
    @buy_times[i] = one
   end  
-  @may_get_solar = @trains[:solars][@weather].inject(0.0){|acc, x| acc+=x}
-  @may_get_solar
+
  end
 
  #####
@@ -527,6 +539,7 @@ class HomeAgent
  #  - sum_solar: ある一日の総発電量 
  def switch_weather_for_pf sum_solar
   @weather = @filter.eval_weather sum_solar
+  select_time_and_value_to_buy # 夜間におよその購入量と蓄電量を概算する 
  end
 
  private
