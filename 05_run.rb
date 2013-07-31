@@ -57,7 +57,7 @@ for count in 1..sim_day do
   output.close
   number += 1
   output = open("./result/result_#{number}.csv",'w')
-  output.write("buy,battery,predict,real,sell\n")
+  output.write("buy,battery,predict,real,sell,weather\n")
  end
  #bats.each{|bat| battery_output.write("#{bat}\n") }
  #buys.each{|buy| buy_output.write("#{buy}\n")}
