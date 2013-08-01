@@ -94,6 +94,7 @@ class HomeAgent
 
      results << power_value
      #sells << sell_value
+     @sells = 0.0 if @battery > @target && cnt < 9*(60/TIMESTEP) && @midnight_strategy
      sells << @sells
      predicts << crnt_solar
      reals << crnt_solar
@@ -185,10 +186,13 @@ class HomeAgent
 
      results << power_value
      #sells << sell_value
-     sells << @sells
+     #### 朝のうちに買っておいた蓄電量をあまり売らない（買ってから蓄電池目標量を下回った時だけ）
+     @sells = 0.0 if @battery > @target && cnt < 9*(60/TIMESTEP) && @midnight_strategy
+     sells << @sells 
      predicts << next_solar
      reals << crnt_solar
      #results << (power_value - @battery > 0.0 ? power_value - @battery : 0.0)
+
      #### 描画部分
      if power_value != 0.0
       timeline += " o"
