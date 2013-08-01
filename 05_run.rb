@@ -18,7 +18,7 @@ output = open('./result/result_0.csv','w')
 output.write("buy,battery,predict,real,sell,weather\n")
 number = 0 # 分割ナンバー
 
-solarfile = open("#{DIRROOT}/data/solar/nagoya/0.csv")
+solarfile = open("#{DIRROOT}/data/solar/nagoya/0_plus30.csv")
 demandfile = open("#{DIRROOT}/data/demand/nagoya/0.csv")
 demand_list = demandfile.readlines
 solar_list = solarfile.readlines
