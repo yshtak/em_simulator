@@ -92,13 +92,12 @@ class HomeAgent
      power_value = buy_power_2(crnt_demand,crnt_solar) # 予測考慮なし
      #sell_value = sell_power # 余剰電力を売る
 
-     if (@weather == SUNNY || @weather == CLOUDY ) && cnt < 15*(60/TIMESTEP) && @midnight_strategy # もし晴れだった場合
-      a = get_trains_power_average_from_time cnt
-      if a + temp_battery > @target
-       power_value = 0.0
-       @battery = temp_battery - crnt_demand
-      end
-     end
+     #if (@weather == SUNNY || @weather == CLOUDY ) && cnt < 15*(60/TIMESTEP)# もし晴れだった場合
+     # a = get_trains_power_average_from_time cnt
+     # if a + temp_battery > @target
+     #  power_value = 0.0
+     # end
+     #end
 
      results << power_value
      #sells << sell_value
@@ -191,7 +190,7 @@ class HomeAgent
 
     end 
    else # Particle Filter を使った場合
-    if cnt > 4*(60/TIMESTEP)  && cnt < 23*(60/TIMESTEP) # タイムステップ（最初の1時間と最後の1時間を除く）
+    if cnt > 2*(60/TIMESTEP)  && cnt < 23*(60/TIMESTEP) # タイムステップ（最初の1時間と最後の1時間を除く）
      crnt_solar = @solars[cnt]
      #next_solar = @filter.next_value_predict(crnt_solar, cnt)
      next_solar = @filter.predict_next_value(crnt_solar, cnt)
@@ -203,18 +202,18 @@ class HomeAgent
      power_value = buy_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
      #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
      #sell_value = sell_power # 余剰電力を売る
-     if (@weather == SUNNY || @weather == CLOUDY ) && cnt < 15*(60/TIMESTEP) && @midnight_strategy # もし晴れだった場合
-      a = get_trains_power_average_from_time cnt
-      if a + temp_battery > @target
-       power_value = 0.0
-       @battery = temp_battery - crnt_demand
-      end
-     end
+,
+     #if (@weather == SUNNY || @weather == CLOUDY ) && cnt < 11*(60/TIMESTEP)# もし晴れだった場合
+     # a = get_trains_power_average_from_time cnt
+     # if a + temp_battery > @target
+     #  power_value = 0.0
+     # end
+     #end
      results << power_value
      #sells << sell_value
      #### 朝のうちに買っておいた蓄電量をあまり売らない（買ってから蓄電池目標量を下回った時だけ）
      if @buy_times[0] != 0.0 # 買う戦略をした時のみ発動
-      @sells = 0.0 if @battery > @target && cnt < 9*(60/TIMESTEP) && @midnight_strategy
+      @sells = 0.0 if @battery > @target && cnt < 4*(60/TIMESTEP) && @midnight_strategy
      end
      sells << @sells 
      predicts << next_solar
@@ -236,9 +235,9 @@ class HomeAgent
      if @midnight_strategy # 夜間の戦略有り
       reals << @solars[cnt]
       predicts << @solars[cnt]
-      results << @buy_times[cnt] # 予め買う予定の電力量の購入
       demand = @demands[cnt] # 消費量
       @battery += (@buy_times[cnt]-demand) # Battery更新
+      results << @buy_times[cnt] # 予め買う予定の電力量の購入
       sells << 0.0
       ### 描画部分
       timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
@@ -254,7 +253,7 @@ class HomeAgent
        @battery = @target 
       else
        results << 0.0
-       sells << sell_power 
+       sells << sell_power # Batteryも更新される
       end
       ### 描画部分
       if @battery - demand < @target
