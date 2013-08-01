@@ -116,7 +116,8 @@ class HomeAgent
       reals << @solars[cnt]
       predicts << @solars[cnt]
       results << @buy_times[cnt] # 予め買う予定の電力量の購入
-      @battery += @buy_times[cnt] # Battery更新
+      demand = @demands[cnt] # 消費量
+      @battery += (@buy_times[cnt]-demand) # Battery更新
       sells << 0.0
       ### 描画部分
       timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
@@ -221,7 +222,8 @@ class HomeAgent
       reals << @solars[cnt]
       predicts << @solars[cnt]
       results << @buy_times[cnt] # 予め買う予定の電力量の購入
-      @battery += @buy_times[cnt] # Battery更新
+      demand = @demands[cnt] # 消費量
+      @battery += (@buy_times[cnt]-demand) # Battery更新
       sells << 0.0
       ### 描画部分
       timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
