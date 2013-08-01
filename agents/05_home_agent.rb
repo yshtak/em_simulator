@@ -88,9 +88,16 @@ class HomeAgent
     if cnt > 4*(60/TIMESTEP)  && cnt < 23*(60/TIMESTEP) # タイムステップ（最初の1時間と最後の1時間を除く）
      crnt_solar = @solars[cnt]
      crnt_demand = @demands[cnt]
-
+     temp_battery = @battery
      power_value = buy_power_2(crnt_demand,crnt_solar) # 予測考慮なし
      #sell_value = sell_power # 余剰電力を売る
+
+     if (@weather == SUNNY || @weather == CLOUDY ) && cnt < 15*(60/TIMESTEP)# もし晴れだった場合
+      a = get_trains_power_average_from_time cnt
+      if a + temp_battery > @target
+       power_value = 0.0
+      end
+     end
 
      results << power_value
      #sells << sell_value
@@ -191,15 +198,21 @@ class HomeAgent
      crnt_demand = @demands[cnt]
      next_demand = @demands[cnt+1]
      #power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する（通常版）
+     temp_battery = @battery # 前の蓄電量を退避(買いすぎの対処
      power_value = buy_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
      #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
      #sell_value = sell_power # 余剰電力を売る
-
+     if (@weather == SUNNY || @weather == CLOUDY ) && cnt < 15*(60/TIMESTEP)# もし晴れだった場合
+      a = get_trains_power_average_from_time cnt
+      if a + temp_battery > @target
+       power_value = 0.0
+      end
+     end
      results << power_value
      #sells << sell_value
      #### 朝のうちに買っておいた蓄電量をあまり売らない（買ってから蓄電池目標量を下回った時だけ）
      if @buy_times[0] != 0.0 # 買う戦略をした時のみ発動
-      @sells = 0.0 if @battery > @target && cnt < 13*(60/TIMESTEP) && @midnight_strategy
+      @sells = 0.0 if @battery > @target && cnt < 9*(60/TIMESTEP) && @midnight_strategy
      end
      sells << @sells 
      predicts << next_solar
@@ -644,6 +657,22 @@ class HomeAgent
    @trains[:demands][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1)
    @trains[:solars][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1)
   end
+ end
+
+ #####
+ # 朝5時に発動する
+ def get_trains_power_average_from_time time
+  sum_power = 0.0
+  size = 15 * (60/TIMESTEP) - 1
+  if time < 15*(60/TIMESTEP) && @trains[:solars][@weather].size > 0
+   for index in time..size
+    demand = @trains[:demands][@weather][index]
+    solar = @trains[:solars][@weather][index]
+    sum_power = sum_power + solar - demand
+   end
+   return sum_power
+  end
+  return 0.0
  end
 
  # フィルターの初期化
