@@ -90,6 +90,10 @@ class ParticleFilter
  def predict solar_t1, t1 
   xmodel_t2 = @ave_models[@weather][t1+1] # 時刻t1+1のモデルデータ
   xmodel_t1 = @ave_models[@weather][t1] # 時刻t1のモデルデータ
+  if xmodel_t2.nil?
+   xmodel_t2 = xmodel_t1
+   xmodel_t1 = @ave_models[@weather][t1-1]
+  end
   #season_value = (average_train_power(t1) - solar_t1 + average_train_power(t1 + 1) ) / 1.0 # 季節変動変数 
   #season_value = (average_train_power(t1) - solar_t1 + average_train_power(t1 + 1) - xmodel_t2) / 1.0 # 季節変動変数 
   #season_value = (average_train_power(t1+1) - average_train_power(t1)) / 1.0 # 季節変動変数 
@@ -201,7 +205,7 @@ class ParticleFilter
  def update_next_true_value x, time
   xmodel_t1 = @ave_models[@weather][time]
   xmodel_t2 = @ave_models[@weather][time+1]
-  dist = xmodel_t2 - xmodel_t1
+  dist = xmodel_t2.nil? ? xmodel_t1 - @ave_models[@weather][time-1] : xmodel_t2 - xmodel_t1
   season_value = (average_train_power(time+1)-average_train_power(time))/1.0
   #season_value = (average_train_power(time) - x + average_train_power(time + 1)
   #                - xmodel_t2) / 1.0 # 季節変動変数 
@@ -216,7 +220,7 @@ class ParticleFilter
  def average_train_power time
   ave = 0.0
   train = @trains[@weather] # pointer
-
+  time = time - 1 if time == 1440/TIMESTEP # 範囲超え内容
   if train.size < (1440 / TIMESTEP) # 学習データがあるかどうか
    return @ave_models[@weather][time]
   elsif train.size == (1440 / TIMESTEP) * @chunk_size ## 最大に学習してる

@@ -200,8 +200,8 @@ class HomeAgent
      print "\e[33m購入状況:#{timeline}\e[0m\r"
 
     else # 夜中と早朝の戦略
+     @filter.train_per_step @solars[cnt] # 学習はする（つじつま合わせ）
      if @midnight_strategy # 夜間の戦略有り
-      @filter.train_per_step @solars[cnt] # 学習はする（つじつま合わせ）
       reals << @solars[cnt]
       predicts << @solars[cnt]
       results << @buy_times[cnt] # 予め買う予定の電力量の購入
@@ -211,7 +211,7 @@ class HomeAgent
       timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
       print "\e[33m購入状況:#{timeline}\e[0m\r"
      else # 夜間戦略なし
-      next_solar = @filter.next_value_predict(@solars[cnt], cnt)
+      next_solar = @filter.predict_next_value(@solars[cnt], cnt)
       predicts << next_solar
       reals << @solars[cnt]
  
@@ -224,7 +224,13 @@ class HomeAgent
        sells << sell_power 
       end
       ### 描画部分
-      timeline = @battery < @target != 0 ? timeline + " o" : timeline + " _"
+      if @battery < @target
+       timeline += " o"
+      elsif @sells > 0.0
+       timeline += " x"
+      else
+       timeline += " _"
+      end
       print "\e[33m購入状況:#{timeline}\e[0m\r"
      end
      
