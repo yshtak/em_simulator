@@ -82,7 +82,6 @@ class HomeAgent
   buys = []
   simdatas = {buy: results, battery: bs, predict: predicts, real: reals, sell: sells} # 結果
   for cnt in 0..(1440/TIMESTEP-1) do
-   bs << @battery
    if @filter.nil? # Filter使わないとき
     if cnt > 4*(60/TIMESTEP)  && cnt < 23*(60/TIMESTEP) # タイムステップ（最初の1時間と最後の1時間を除く）
      crnt_solar = @solars[cnt]
@@ -96,19 +95,27 @@ class HomeAgent
      sells << @sells
      predicts << crnt_solar
      reals << crnt_solar
-    else # 最初の1時間と最後の一時間
-     crnt_solar = @solars[cnt]
-     predicts << crnt_solar
-     reals << crnt_solar
-
-     if @battery < @target # バッテリー容量が目標値を下回るとき
-      results << @target - @battery # 目標値になるように電力を買う
-      sells << 0.0
-      @battery = @target
+     #### 描画部分
+     if power_value != 0.0
+      timeline += " o"
+     elsif @sells != 0.0
+      timeline += " x"
      else
-      results << 0.0
-      sells << sell_power 
+      timeline += " _"
      end
+     print "\e[33m購入状況:#{timeline}\e[0m\r"
+
+    else # 最初の1時間と最後の一時間
+     #@filter.train_per_step @solars[cnt] # 学習はする（つじつま合わせ）
+     reals << @solars[cnt]
+     predicts << @solars[cnt]
+     results << @buy_times[cnt] # 予め買う予定の電力量の購入
+     @battery += @buy_times[cnt] # Battery更新
+     sells << 0.0
+
+     ### 描画部分
+     timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
+     print "\e[33m購入状況:#{timeline}\e[0m\r"
     end
    elsif @filter.eql?("normal") # 平均した曲線モデルで予測する場合
     if cnt > 4*(60/TIMESTEP)  && cnt < 23*(60/TIMESTEP) # タイムステップ（最初の1時間と最後の1時間を除く）
@@ -174,6 +181,7 @@ class HomeAgent
       timeline += " _"
      end
      print "\e[33m購入状況:#{timeline}\e[0m\r"
+
     else # 夜中と早朝の戦略
      @filter.train_per_step @solars[cnt] # 学習はする（つじつま合わせ）
      reals << @solars[cnt]
@@ -188,6 +196,7 @@ class HomeAgent
 
     end
    end
+   bs << @battery
   end
   #p predicts[45]
   #p reals[45]
@@ -499,7 +508,7 @@ class HomeAgent
  # 1日の初期化
  def init_date
   @clock = 0
-  @filter.particles_zero
+  @filter.particles_zero unless @filter.nil?
   train_data_per_day
   #@filter.init_data if !@filter.nil? && !@filter.eql?("normal")
  end
@@ -554,7 +563,14 @@ class HomeAgent
  #  ある１位日の総発電量から天候をセットする
  #  - sum_solar: ある一日の総発電量 
  def switch_weather_for_pf sum_solar
-  @weather = @filter.eval_weather sum_solar
+  @filter.eval_weather sum_solar if !@filter.nil?
+  if SUNNY_BORDER < sum_solar
+   @weather = SUNNY
+  elsif CLOUDY_BORDER < sum_solar
+   @weather = CLOUDY
+  else
+   @weather = RAINY
+  end
   select_time_and_value_to_buy # 夜間におよその購入量と蓄電量を概算する 
  end
 
