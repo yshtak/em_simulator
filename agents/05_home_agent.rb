@@ -125,15 +125,23 @@ class HomeAgent
       crnt_solar = @solars[cnt]
       predicts << crnt_solar
       reals << crnt_solar
-      if @battery < @target # バッテリー容量が目標値を下回るとき
-       results << @target - @battery # 目標値になるように電力を買う
+      demand = @demands[cnt] # 消費量
+      if @battery - demand < @target # バッテリー容量が目標値を下回るとき
+       results << @target - @battery + demand # 目標値になるように電力を買う
        sells << 0.0
        @battery = @target
       else
        results << 0.0
        sells << sell_power 
       end
-      timeline = @battery < @target != 0 ? timeline + " o" : timeline + " _"
+      ### 描画部分
+      if @battery - demand < @target
+       timeline += " o"
+      elsif @sells > 0.0
+       timeline += " x"
+      else
+       timeline += " _"
+      end
       print "\e[33m購入状況:#{timeline}\e[0m\r"
      end
     end
@@ -222,17 +230,17 @@ class HomeAgent
       next_solar = @filter.predict_next_value(@solars[cnt], cnt)
       predicts << next_solar
       reals << @solars[cnt]
- 
-      if @battery < @target
-       results << @target - @battery
+      demand = @demands[cnt] # 消費量
+      if @battery - demand < @target
+       results << @target - @battery + demand
        sells << 0.0
-       @battery = @target
+       @battery = @target 
       else
        results << 0.0
        sells << sell_power 
       end
       ### 描画部分
-      if @battery < @target
+      if @battery - demand < @target
        timeline += " o"
       elsif @sells > 0.0
        timeline += " x"
