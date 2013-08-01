@@ -94,7 +94,9 @@ class HomeAgent
 
      results << power_value
      #sells << sell_value
-     @sells = 0.0 if @battery > @target && cnt < 9*(60/TIMESTEP) && @midnight_strategy
+     if @buy_times[0] != 0.0 # 買う戦略をした時のみ発動
+      @sells = 0.0 if @battery > @target && cnt < 9*(60/TIMESTEP) && @midnight_strategy
+     end
      sells << @sells
      predicts << crnt_solar
      reals << crnt_solar
@@ -187,7 +189,9 @@ class HomeAgent
      results << power_value
      #sells << sell_value
      #### 朝のうちに買っておいた蓄電量をあまり売らない（買ってから蓄電池目標量を下回った時だけ）
-     @sells = 0.0 if @battery > @target && cnt < 9*(60/TIMESTEP) && @midnight_strategy
+     if @buy_times[0] != 0.0 # 買う戦略をした時のみ発動
+      @sells = 0.0 if @battery > @target && cnt < 9*(60/TIMESTEP) && @midnight_strategy
+     end
      sells << @sells 
      predicts << next_solar
      reals << crnt_solar
