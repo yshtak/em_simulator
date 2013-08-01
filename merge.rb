@@ -36,6 +36,32 @@ CSV.open("./result/merge.csv",'w') do |writer|
  }
 end
 
+##
+count = 0 # カウントの初期化
+CSV.open("./result/sum.csv",'w') do |writer|
+ header = ["BuySum","SellSum","BatteryAverage"]
+ col_size = header.size
+ writer << header
+ (0..sim_day/5-1).each{|num|
+  file = open("./result/result_#{num}.csv",'r')
+  tmp_result = []
+  file.each do |line|
+   datas = line.split(',').map{|x|x.to_f}
+   if count != 0
+    tmp_result << Vector.elements([datas[0],datas[4],datas[1]])
+   end
+   count += 1
+   if tmp_result.size == 96
+    onedata = tmp_result.inject(Vector.elements Array.new(col_size,0)){|sum,x| sum+= x}.to_a
+    onedata[2] /= 96.0 
+    writer << (onedata)
+    tmp_result = []
+   end
+  end
+ }
+end
+
+
 # mapeの計算
 predicts = []
 reals = []
