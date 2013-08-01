@@ -1,4 +1,4 @@
-require "#{File.expand_path File.dirname __FILE__}/../filter/02_particle_filter"
+require "#{File.expand_path File.dirname __FILE__}/../filter/05_particle_filter"
 require "#{File.expand_path File.dirname __FILE__}/../config/simulation_data"
 #========================================================
 #
@@ -24,12 +24,14 @@ class HomeAgent
    address: "unknown",
    limit_power: 500.0,
    chunk_size: 5,
-   midnight_ratio: 0.8 # 夜間に購入する目標充電率
+   midnight_ratio: 0.8, # 夜間に購入する目標充電率
+   midnight_strategy: true # 夜間戦略ありなし
   }.merge(cfg)
   ap config
   # データの初期化
   @chunk_size = config[:chunk_size] # 学習データサイズ
   @midnight_ratio = 0.8
+  @midnight_strategy = config[:midnight_strategy]
   @max_strage = config[:max_strage]
   @battery = 2000.0
   @address = config[:address]
@@ -107,15 +109,30 @@ class HomeAgent
 
     else # 最初の1時間と最後の一時間
      #@filter.train_per_step @solars[cnt] # 学習はする（つじつま合わせ）
-     reals << @solars[cnt]
-     predicts << @solars[cnt]
-     results << @buy_times[cnt] # 予め買う予定の電力量の購入
-     @battery += @buy_times[cnt] # Battery更新
-     sells << 0.0
-
-     ### 描画部分
-     timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
-     print "\e[33m購入状況:#{timeline}\e[0m\r"
+     if @midnight_strategy # 夜間戦略あり
+      reals << @solars[cnt]
+      predicts << @solars[cnt]
+      results << @buy_times[cnt] # 予め買う予定の電力量の購入
+      @battery += @buy_times[cnt] # Battery更新
+      sells << 0.0
+      ### 描画部分
+      timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
+      print "\e[33m購入状況:#{timeline}\e[0m\r"
+     else # 夜間戦略なし
+      crnt_solar = @solars[cnt]
+      predicts << crnt_solar
+      reals << crnt_solar
+      if @battery < @target # バッテリー容量が目標値を下回るとき
+       results << @target - @battery # 目標値になるように電力を買う
+       sells << 0.0
+       @battery = @target
+      else
+       results << 0.0
+       sells << sell_power 
+      end
+      timeline = @battery < @target != 0 ? timeline + " o" : timeline + " _"
+      print "\e[33m購入状況:#{timeline}\e[0m\r"
+     end
     end
    elsif @filter.eql?("normal") # 平均した曲線モデルで予測する場合
     if cnt > 4*(60/TIMESTEP)  && cnt < 23*(60/TIMESTEP) # タイムステップ（最初の1時間と最後の1時間を除く）
@@ -184,16 +201,39 @@ class HomeAgent
 
     else # 夜中と早朝の戦略
      @filter.train_per_step @solars[cnt] # 学習はする（つじつま合わせ）
-     reals << @solars[cnt]
-     predicts << @solars[cnt]
-     results << @buy_times[cnt] # 予め買う予定の電力量の購入
-     @battery += @buy_times[cnt] # Battery更新
-     sells << 0.0
-
-     ### 描画部分
-     timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
-     print "\e[33m購入状況:#{timeline}\e[0m\r"
-
+     if @midnight_strategy # 夜間の戦略有り
+      reals << @solars[cnt]
+      predicts << @solars[cnt]
+      results << @buy_times[cnt] # 予め買う予定の電力量の購入
+      @battery += @buy_times[cnt] # Battery更新
+      sells << 0.0
+      ### 描画部分
+      timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
+      print "\e[33m購入状況:#{timeline}\e[0m\r"
+     else # 夜間戦略なし
+      next_solar = @filter.predict_next_value(@solars[cnt], cnt)
+      predicts << next_solar
+      reals << @solars[cnt]
+ 
+      if @battery < @target
+       results << @target - @battery
+       sells << 0.0
+       @battery = @target
+      else
+       results << 0.0
+       sells << sell_power 
+      end
+      ### 描画部分
+      if @battery < @target
+       timeline += " o"
+      elsif @sells > 0.0
+       timeline += " x"
+      else
+       timeline += " _"
+      end
+      print "\e[33m購入状況:#{timeline}\e[0m\r"
+     end
+     
     end
    end
    bs << @battery

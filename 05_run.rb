@@ -6,8 +6,8 @@ require "awesome_print"
 require "#{DIRROOT}/config/simulation_data.rb"
 #: 初期設定
 include SimulationData
-ha = HomeAgent.new({filter: 'pf',address:'nagoya'})
-#ha = HomeAgent.new({filter: 'none',address:'nagoya'})
+ha = HomeAgent.new({filter: 'pf',address:'nagoya', midnight_strategy: false})
+#ha = HomeAgent.new({filter: 'none',address:'nagoya', midnight_strategy: false})
 #ha = HomeAgent.new({filter: 'normal', address:'nagoya'})
 #ap ha.filter.config
 
