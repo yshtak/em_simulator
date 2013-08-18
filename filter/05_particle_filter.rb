@@ -96,11 +96,11 @@ class ParticleFilter
   end
   #season_value = (average_train_power(t1) - solar_t1 + average_train_power(t1 + 1) ) / 1.0 # 季節変動変数 
   #season_value = (average_train_power(t1) - solar_t1 + average_train_power(t1 + 1) - xmodel_t2) / 1.0 # 季節変動変数 
-  season_value = (average_train_power(t1+1) - average_train_power(t1)) / 2.0 # 季節変動変数 
+  season_value = (average_train_power(t1+1) - average_train_power(t1)) / 1.0 # 季節変動変数 
   #season_value = (average_train_power(t1) - @particles[i].value + average_train_power(t1+1) - xmodel_t2) / 2.0 # 季節変動変数 
   #season_value = @next
   #season_value = 0.0
-
+  variance = 10.0 
   # 状態方程式を割り当てる
   for i in 0..@particles.size-1 do
    # 状態遷移
@@ -109,31 +109,39 @@ class ParticleFilter
    #@particles[i].value = @next_true_particle.value + (average_train_power(t1+1) - average_train_power(t1)) + @rbm.generate_rand_normval(0.0,1.0,1)[0]
    #@particles[i].value = @next_true_particle.value + (xmodel_t2 - xmodel_t1 + (average_train_power(t1+1) - average_train_power(t1)))/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
    #@particles[i].value = @next_true_particle.value + xmodel_t2 - xmodel_t1 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
-   @particles[i].value = @next_true_particle.value + ((xmodel_t2 - xmodel_t1) + season_value)/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
+   if @trains[@weather].size > 0
+    #@particles[i].value = @next_true_particle.value + xmodel_t2 - xmodel_t1 + @rbm.generate_rand_normval(0.0,1.0,1)[0] * variance
+    @particles[i].value = solar_t1 + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0] * variance
+   else
+    @particles[i].value = solar_t1 + xmodel_t2 - xmodel_t1 + @rbm.generate_rand_normval(0.0,1.0,1)[0] * variance
+   end
+   #@particles[i].value = @next_true_particle.value + ((xmodel_t2 - xmodel_t1) + season_value)/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
    #@particles[i].value = @particles[i].value + (xmodel_t2 - xmodel_t1) + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0]
    #@particles[i].value = @particles[i].value + ((xmodel_t2 - xmodel_t1) + season_value)/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
    #ap "Index[#{t1},#{@weather}]: model data:#{xmodel_t1}:ParticleValue:#{@particles[i].value}: Actual Data:#{solar_t1}"
   end
+  #dump_particles t1
   return true 
  end
 
  #== 重み付け関数（尤度計算関数）
- # - x: パーティクル
+ # - particle: パーティクル
  # - return: 尤度
  def likelihood particle
   ## 平均的なモデル及び最近のデータのモデルを利用
   # 観測地点
-  obs = [0]
+  obs = [20.0,0.0,-20.0]
   sigma = 5.0
-  v = @rbm.generate_rand_normval 0.0, 1.0, 3 
+  v = @rbm.generate_rand_normval 0.0, 1.0, obs.size 
   sum = 0.0
-  variance = 5.0 # 実験的に求める
+  variance = 255.0 # 実験的に求める
   #mu = @particles.inject(0.0){|acc, x|acc+=x.value}/@particles.size
   obs.each_with_index do |point,index|
    y = particle.value - point + v[index] * variance
    #dist = Math.sqrt((@next_true_particle.value - particle.value)**2)
    #sum += 1.0 + 1.0/(Math.sqrt(2.0*Math::PI) * sigma) * Math.exp(-dist*dist/(2.0*sigma*sigma))
-   sum +=  (Math.exp(-(@next_true_particle.value - particle.value)/(2.0*sigma**2)))/(Math.sqrt(Math::PI * sigma**2))
+   #sum +=  (Math.exp(-(@next_true_particle.value - particle.value)/(2.0*sigma**2)))/(Math.sqrt(Math::PI * sigma**2))
+   sum +=  (Math.exp(-(@next_true_particle.value - y)/(2.0*sigma**2)))/(Math.sqrt(Math::PI * sigma**2))
    #sum += 1.0 + 1.0/(Math.sqrt(2.0*Math::PI) * sigma) * Math.exp(-dist*dist/(2.0*sigma*sigma))
   end
   return sum/obs.size
@@ -173,7 +181,7 @@ class ParticleFilter
   #result_particle.weight = 1.0 # 任意
   #ap "value:#{value}"
   #ap "weight:#{weight}"
-  value = value / weight 
+  value = value / weight # 平均値が予測の値
   return value < 0.0 ? 0.0 : value
  end
  ###### 以上 ##############################################
@@ -293,6 +301,16 @@ class ParticleFilter
     @trains[@weather].slice!(0, 1440/TIMESTEP) # 古いデータ削除
    end
   end
+ end
+
+ ##
+ # Debug用
+ def dump_particles time
+  @count = @count.nil? ?  0 : @count + 1 
+  f = open("dump/particle_#{@count}.csv",'w')
+  @particles.each{|particle|
+   f.write "#{particle.value}\n"
+  }
  end
 
 end
