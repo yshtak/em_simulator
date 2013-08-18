@@ -1,12 +1,20 @@
+# coding:utf-8
 DIRROOT = File.expand_path File.dirname __FILE__
 require 'yaml'
+require 'celluloid/autostart'
+require 'thread'
 require "#{DIRROOT}/agents/06_home_agent"
-require "#{DIRROOT}/filter/05_particle_filter"
+require "#{DIRROOT}/filter/06_particle_filter"
 require "awesome_print"
 require "#{DIRROOT}/config/simulation_data.rb"
+require "#{DIRROOT}/agents/01_power_company"
 #: 初期設定
 include SimulationData
-ha = HomeAgent.new({filter: 'pf',address:'nagoya', midnight_strategy: true})
+pca = PowerCompany.new
+ha = HomeAgent.new({filter: 'pf',address:'nagoya', midnight_strategy: true,contractor: pca})
+
+Celluloid::Actor[pca.id] = pca
+Celluloid::Actor[pca.id].dump
 #ha = HomeAgent.new({filter: 'none',address:'nagoya', midnight_strategy: true})
 #ha = HomeAgent.new({filter: 'normal', address:'nagoya'})
 #ap ha.filter.config
@@ -41,7 +49,6 @@ for count in 1..sim_day do
  end
 
  ha.switch_weather_for_pf sum_solar 
-
  ha.set_demands demands
  ha.set_solars solars 
 

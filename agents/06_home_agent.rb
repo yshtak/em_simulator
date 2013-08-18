@@ -1,21 +1,28 @@
-require "#{File.expand_path File.dirname __FILE__}/../filter/05_particle_filter"
+# coding: utf-8 
+require 'celluloid/autostart'
+require "#{File.expand_path File.dirname __FILE__}/../filter/06_particle_filter"
 require "#{File.expand_path File.dirname __FILE__}/../config/simulation_data"
 #========================================================
 #
-# Home Agent v5.0
+# Home Agent v6.0
 # 2013-07-27
 #  - 新しいParticle Filterを導入
 # 2013-07-30
 #  - 夜間に電力をまとめて買う戦略の導入
+# 2013-08-18
+#  - ActorModelの導入 mailboxでメッセージを受け取るよう
+#  に設定
 #
 #========================================================
 class HomeAgent
  attr_accessor :strage, :target, :filter
  SIM_INTERVAL = 24 * 4 # 15分刻み
  include SimulationData
+ include Celluloid
 
  def initialize cfg={}
   config = {
+   id: "nagoya01",
    filter: 'none', # 未来予測のためのフィルターのタイプ
    max_strage: 5000.0, # 蓄電容量(Wh)
    target: 2000.0, # 目標蓄電量(Wh)
@@ -26,10 +33,13 @@ class HomeAgent
    chunk_size: 5,
    midnight_ratio: 0.6, # 夜間に購入する目標充電率
    midnight_strategy: true, # 夜間戦略ありなし
-   midnight_interval: 4
+   midnight_interval: 4,
+   contractor: nil # 電力事業所エージェントのポインター
   }.merge(cfg)
   ap config
   # データの初期化
+  @id = config[:id]
+  @my_contractor = config[:contractor] # ポインター受け渡し
   @chunk_size = config[:chunk_size] # 学習データサイズ
   @midnight_ratio = config[:midnight_ratio] 
   @midnight_interval = config[:midnight_interval]
@@ -60,6 +70,7 @@ class HomeAgent
   }
   @buy_times = Array.new((1440/TIMESTEP),0.0) # 夜間に決定した間別の購入量配列
   @may_get_solar = 0.0 # 次の日に得られる発電量
+  @yield = 0.0 # 家庭エージェントの利益
  end
 
  # 需要量のセット
@@ -72,7 +83,6 @@ class HomeAgent
  def set_solars datas
   @solars=[]
   @solars = datas.map{|x| x/2.0 } # 発電効率50%
-  
  end
 
  # 一日の行動をする
@@ -236,6 +246,9 @@ class HomeAgent
       timeline += " _"
      end
      print "\e[33m購入状況(#{(100*@battery/@max_strage).to_i}%):#{timeline}\e[0m\r"
+     ### 電力事業所にメールを送る
+     ##@my_contractor.mailbox << "buy:#{power_value},sell:#{@sells}"
+     @my_contractor.dump
 
     else # 夜中と早朝の戦略
      @filter.train_per_step @solars[cnt] # 学習はする（つじつま合わせ）
@@ -633,7 +646,7 @@ class HomeAgent
   ##
   ##@may_get_solar = sum_solar / (@trains[:solars][@weather].size / (1440/TIMESTEP))
   midnight_interval = 4 
-  per_demand = -> (value){ (value/(midnight_interval*(60/TIMESTEP)))} # ４時間分割する方程式
+  per_demand = ->(value) {(value/(midnight_interval*(60/TIMESTEP)))} # ４時間分割する方程式
   
   one = 0.0
   if sum_solar - sum_demand > 0.0 && train_demands.size > 0 && @trains[:solars][@weather].size > 0# 次の日の発電量と需要の差が
@@ -737,6 +750,18 @@ class HomeAgent
    return nil
   end
   return nil
+ end
+
+ ###
+ # メッセージをmailboxで受け取ったときの処理
+ # 受け取るメッセージの形式
+ # buy: 電力購入
+ # sell: 余剰電力の販売
+ # end_done: 一日の行動終了
+ # start_action: 一日の行動開始
+ def wait
+  message = recieve{|msg| msg.is_a? String}
+  puts "受け取ったメッセージ: #{message}"
  end
 
 end

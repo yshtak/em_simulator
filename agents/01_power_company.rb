@@ -1,6 +1,6 @@
 # coding: utf-8 
 require 'awesome_print'
-#require ''
+require 'celluloid/autostart'
 # PowerCompany
 # 
 # @author yshtak
@@ -16,26 +16,32 @@ require 'awesome_print'
 # 2013-08-17
 #
 class PowerCompany
+  include Celluloid
+  include Celluloid::Logger
   #
   # constructor
   MIN_PRICE = 20 # kWhの価格
   MAX_PRICE = 30
   FIXED_MODEL = 0 # 固定買取価格
   DYNAMIC_MODEL = 1 # 変動買取価格
-  def initializer cfg={}
+  attr_accessor :id
+  def initialize cfg={}
     config = {
       lpg: 6000000.0,
       timestep: 15,
-      model_type: FIXED_MODEL
+      model_type: FIXED_MODEL,
+      id: 'pc1'
     }.merge(cfg)
-    @sell_price = price_curve # 電力価格初期化
-    @purchase_price = purchase_curve # 買取価格初期化
+    @id = config[:id]
     @yield = 0.0 # 利益
     @tpg = 0.0 # Total Power Generation トータルの発電量/日
     @lpg = config[:lpg] # Limit Power Generation 発電制限量/日
-    @timestep = 15
+    @timestep = config[:timestep]
+    @sell_price = price_curve # 電力価格初期化
+    @purchase_price = purchase_curve # 買取価格初期化
     @model_type = config[:model_type] 
     @train_data = {}
+    @home_actors = []
   end
 
   #
@@ -69,14 +75,15 @@ class PowerCompany
 
   # show power company status
   def dump
-    ap "販売価格：#{@sell_price}\n買取価格：#{@purchase_price}\n利益：#{@yield}\n"
+    info "販売価格:#{@sell_price},買取価格:#{@purchase_price},利益:#{@yield}\n"
+    #ap "販売価格：#{@sell_price}\n買取価格：#{@purchase_price}\n利益：#{@yield}\n"
   end
 
   private
   ## 価格曲線の関数
   def price_curve
     alpha = 0.2 # 定数
-    (MIN_PRICE / (1000 * 60/@timestep)) * (1 + alpha(@tpg / (@lpg - @tpg))) ### kWh -> W15m
+    (MIN_PRICE / (1000 * 60/@timestep)) * (1 + alpha*(@tpg / (@lpg - @tpg))) ### kWh -> W15m
   end
 
   ## 販売曲線（固定価格も可能）の関数
@@ -88,6 +95,12 @@ class PowerCompany
       ##return
       return 38.0 / (1000*60/@timestep)
     end
+  end
+
+  ### 
+  # アクターを追加
+  def add_actor id
+    @home_actors << id
   end
 
 end
