@@ -18,7 +18,7 @@ require 'celluloid/autostart'
 class PowerCompany
   include Celluloid
   include Celluloid::Logger
-  #
+
   # constructor
   MIN_PRICE = 20 # kWhの価格
   MAX_PRICE = 30
@@ -41,7 +41,38 @@ class PowerCompany
     @purchase_price = purchase_curve # 買取価格初期化
     @model_type = config[:model_type] 
     @train_data = {}
-    @home_actors = []
+    @action_list = []
+    @mails = []
+  end
+
+  ## 一日の行動(1日まとめての行動)
+  # mailの中身
+  # buy:[FLOAT]
+  # sell:[FLOAT]
+  #
+  def day_action
+   @mails.each do |msg|
+    ds = msg.split(",")
+    ds.each{|pay|
+     case pay
+     when /^buy:.*?/ ## ホームエージェントが買う 
+      value = pay.gsub(/^buy:/,"").to_f
+      sell_power value 
+     when /^sell:.*?/ ## ホームエージェントが売る
+      value = pay.gsub(/^sell:/,"").to_f
+      purchase_power value
+     end
+    }
+   end 
+  end
+
+  ##
+  # 
+  # 
+  def init_date
+   @tpg = 0.0
+   @sell_price = price_curve
+   @purchase_price = purchase_curve
   end
 
   #
@@ -79,6 +110,12 @@ class PowerCompany
     #ap "販売価格：#{@sell_price}\n買取価格：#{@purchase_price}\n利益：#{@yield}\n"
   end
 
+  ###
+  # ホームエージェントから受け取るメッセージボックス
+  def recieve_msg msg
+   @mails << msg
+  end
+
   private
   ## 価格曲線の関数
   def price_curve
@@ -92,15 +129,15 @@ class PowerCompany
     when FIXED_MODEL
       return 38.0 / (1000*60/@timestep) # 2013年版(kWh -> W15m)
     when DYNAMIC_MODEL
-      ##return
       return 38.0 / (1000*60/@timestep)
     end
+    return 38.0 / (1000 * 60 / @timestep)
   end
 
   ### 
   # アクターを追加
-  def add_actor id
-    @home_actors << id
+  def add_actor actor
+    Celluloid::Actor[actor.id] = actor
   end
 
 end

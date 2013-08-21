@@ -1,9 +1,9 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    amq-protocol (1.6.0)
+    amq-protocol (1.7.0)
     awesome_print (1.1.0)
-    bunny (0.9.8)
+    bunny (0.10.2)
       amq-protocol (>= 1.6.0)
     celluloid (0.14.1)
       timers (>= 1.0.0)
@@ -11,6 +11,7 @@ GEM
     hiredis (0.4.5)
     method_source (0.8.2)
     oj (2.1.4)
+    parallel (0.7.1)
     pry (0.9.12.2)
       coderay (~> 1.0.5)
       method_source (~> 0.8)
@@ -29,6 +30,7 @@ DEPENDENCIES
   celluloid
   hiredis
   oj
+  parallel
   pry
   redis
   uuidtools

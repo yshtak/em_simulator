@@ -9,4 +9,5 @@ gem 'awesome_print'
 gem 'redis'
 gem 'hiredis'
 gem 'pry'
+gem 'parallel'
 # gem "rails"
