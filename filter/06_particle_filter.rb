@@ -1,3 +1,4 @@
+# coding: utf-8
 require 'pry'
 require 'awesome_print'
 require "#{File.expand_path File.dirname __FILE__}/../config/simulation_data"
@@ -38,7 +39,7 @@ class ParticleFilter
   init_ave_model
   @rbm = RandomBoxMuller.new # Random生成器（正規乱数）
 
-  @state_eq = -> (x, dist, season_value,rnd){ x + dist + season_value + rnd }
+  @state_eq = ->(x, dist, season_value,rnd) { x + dist + season_value + rnd }
 
   @trains = { # 学習データ
    SUNNY => [],
