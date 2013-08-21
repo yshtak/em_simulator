@@ -52,14 +52,14 @@ end
 
 sim_day = SIM_DAYS
 
-(0..4).each do |number|
- ha_id = "nagoya_#{number}" 
+(0..4).each do |agentid|
+ ha_id = "nagoya_#{agentid}" 
   output = open("./result/#{ha_id}/result_0.csv",'w')
   output.write("buy,battery,predict,real,sell,weather\n")
   number = 0 # 分割ナンバー
   for count in 1..sim_day do
-   demands = agent_demands[number][count-1].split(',').map{|x| x.to_f}
-   solars = agent_solars[number][count-1].split(',').map{|x| x.to_f}
+   demands = agent_demands[agentid][count-1].split(',').map{|x| x.to_f}
+   solars = agent_solars[agentid][count-1].split(',').map{|x| x.to_f}
    sum_solar = solars.inject(0.0){|x,sum|sum += x}
    
    print "Day #{count}, Sum Solar:#{sum_solar},"
