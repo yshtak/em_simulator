@@ -101,7 +101,7 @@ class ParticleFilter
   #season_value = (average_train_power(t1) - @particles[i].value + average_train_power(t1+1) - xmodel_t2) / 2.0 # 季節変動変数 
   #season_value = @next
   #season_value = 0.0
-  variance = 10.0 
+  variance = 1.0 
   # 状態方程式を割り当てる
   for i in 0..@particles.size-1 do
    # 状態遷移
@@ -110,12 +110,16 @@ class ParticleFilter
    #@particles[i].value = @next_true_particle.value + (average_train_power(t1+1) - average_train_power(t1)) + @rbm.generate_rand_normval(0.0,1.0,1)[0]
    #@particles[i].value = @next_true_particle.value + (xmodel_t2 - xmodel_t1 + (average_train_power(t1+1) - average_train_power(t1)))/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
    #@particles[i].value = @next_true_particle.value + xmodel_t2 - xmodel_t1 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
-   if @trains[@weather].size > 0
-    #@particles[i].value = @next_true_particle.value + xmodel_t2 - xmodel_t1 + @rbm.generate_rand_normval(0.0,1.0,1)[0] * variance
-    @particles[i].value = solar_t1 + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0] * variance
-   else
-    @particles[i].value = solar_t1 + xmodel_t2 - xmodel_t1 + @rbm.generate_rand_normval(0.0,1.0,1)[0] * variance
-   end
+   
+   #if @trains[@weather].size > 0
+   # @particles[i].value = solar_t1 + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0] * variance
+   #else
+   # @particles[i].value = solar_t1 + xmodel_t2 - xmodel_t1 + @rbm.generate_rand_normval(0.0,1.0,1)[0] * variance
+   #end
+
+   @particles[i].value = @particles[i].value + (xmodel_t2 - xmodel_t1 + season_value)/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0] * variance
+   @particles[i].value = solar_t1 + (xmodel_t2 - xmodel_t1 + season_value)/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0] * variance
+   
    #@particles[i].value = @next_true_particle.value + ((xmodel_t2 - xmodel_t1) + season_value)/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
    #@particles[i].value = @particles[i].value + (xmodel_t2 - xmodel_t1) + season_value + @rbm.generate_rand_normval(0.0,1.0,1)[0]
    #@particles[i].value = @particles[i].value + ((xmodel_t2 - xmodel_t1) + season_value)/2.0 + @rbm.generate_rand_normval(0.0,1.0,1)[0]
@@ -131,11 +135,12 @@ class ParticleFilter
  def likelihood particle
   ## 平均的なモデル及び最近のデータのモデルを利用
   # 観測地点
-  obs = [20.0,0.0,-20.0]
-  sigma = 5.0
+  #obs = [20.0,0.0,-20.0]
+  obs = [0.0] ## TODO: 天候で分ける
+  sigma = 3.0
   v = @rbm.generate_rand_normval 0.0, 1.0, obs.size 
   sum = 0.0
-  variance = 255.0 # 実験的に求める
+  variance = 1.0 # 実験的に求める
   #mu = @particles.inject(0.0){|acc, x|acc+=x.value}/@particles.size
   obs.each_with_index do |point,index|
    y = particle.value - point + v[index] * variance
@@ -196,8 +201,11 @@ class ParticleFilter
  def predict_next_value solar, time
   update_next_true_value solar, time
   self.resample
-  self.predict(solar, time) 
-  self.weight
+  self.predict(solar, time)
+  #(0..1).each do 
+   self.weight
+   self.resample
+  #end
   result = self.measure
   ###
 

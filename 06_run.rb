@@ -12,9 +12,11 @@ require "#{DIRROOT}/agents/01_power_company"
 include SimulationData
 pca = PowerCompany.new
 ha = HomeAgent.new({filter: 'pf',address:'nagoya', midnight_strategy: true,contractor: pca})
+#ha = HomeAgent.new({filter: 'pf',address:'nagoya', midnight_strategy: true,contractor: pca})
 
 Celluloid::Actor[pca.id] = pca
 Celluloid::Actor[pca.id].dump
+Celluloid::Actor[ha.id] = ha
 #ha = HomeAgent.new({filter: 'none',address:'nagoya', midnight_strategy: true})
 #ha = HomeAgent.new({filter: 'normal', address:'nagoya'})
 #ap ha.filter.config
@@ -58,7 +60,9 @@ for count in 1..sim_day do
   output.write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]}\n"
   #output.write "#{buys[i]},#{bats[i]}\n"
  }
+ Celluloid::Actor[pca.id].day_action
  ha.init_date # 初期化
+ Celluloid::Actor[pca.id].init_date # 初期化
 
  if count % 5 == 0
   output.close
