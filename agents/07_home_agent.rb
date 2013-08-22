@@ -980,6 +980,7 @@ class HomeAgent
 
  #####
  # 朝5時に発動する
+ #
  def get_trains_power_average_from_time time
   sum_power = 0.0
   size = 15 * (60/TIMESTEP) - 1

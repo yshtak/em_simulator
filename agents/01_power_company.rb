@@ -195,6 +195,7 @@ class PowerCompany
       x = ((@onestep_tpp+0.1)/(@onestep_tpg+0.1))*100
       alpha = 0.2
       price = 10 + 15 / (1.0 + alpha * Math.exp(x-50)) ## kWh 
+      price = (MIN_PRICE) * (1.0 + alpha*(@onestep_tpp / (@onestep_tpg - @onestep_tpp)))
       #return price / (1000*60/@timestep)
       return price
     end
