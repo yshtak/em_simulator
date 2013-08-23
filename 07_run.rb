@@ -55,7 +55,7 @@ end
 #number = 0 # 分割ナンバー
 number = 0
 sim_day = SIM_DAYS
-agent_num = 3
+agent_num = 1
 
 for count in 1..sim_day do
   #output = open("./result/#{ha_id}/result_0.csv",'w')

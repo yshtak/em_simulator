@@ -23,7 +23,7 @@ class PowerCompany
 
   # constructor
   MIN_PRICE = 20 # kWhの価格
-  MAX_PRICE = 30
+  MAX_PRICE = 35
   FIXED_MODEL = 0 # 固定買取価格
   DYNAMIC_MODEL = 1 # 変動買取価格
   attr_accessor :id, :trains
@@ -89,7 +89,8 @@ class PowerCompany
    end
    onedata[:purchase_price] = @purchase_price # 更新
    onedata[:sell_price] = @sell_price # 更新
-   p onedata
+   #print "sell_power:",(onedata[:sell]*1000).round/1000.0,"\t\tbuy_power:",(onedata[:buy]*1000).round/1000.0,"\t\tpurchase_price:",
+   #  (onedata[:purchase_price]*1000).round/1000.0,"\t\tsell_price:",(onedata[:sell_price]*1000).round/1000.0,"\n"
    @mails = [] # mailを空にする
    @output_data << onedata
    @trains[@weather] << onedata
@@ -182,7 +183,7 @@ class PowerCompany
     end
     #(MIN_PRICE / (1000 * 60/@timestep)) * (1 + alpha*(@tpg / (@lpg - @tpg))) ### kWh -> W15m
     #ap value / (1000*60/@timestep).to_f
-    return value ### kWh -> W15m 
+    return value < MAX_PRICE ? value : MAX_PRICE  ### kWh -> W15m 
     #return value / (1000*60/@timestep).to_f ### kWh -> W15m 
   end
 
@@ -192,10 +193,9 @@ class PowerCompany
     when FIXED_MODEL
       return 38.0 / (1000*60/@timestep) # 2013年版(kWh -> W15m)
     when DYNAMIC_MODEL
-      x = ((@onestep_tpp+0.1)/(@onestep_tpg+0.1))*100
+      #x = ((@onestep_tpp + 0.1)/(@onestep_tpg+0.1))*100
       alpha = 0.2
-      price = 10 + 15 / (1.0 + alpha * Math.exp(x-50)) ## kWh 
-      price = (MIN_PRICE) * (1.0 + alpha*(@onestep_tpp / (@onestep_tpg - @onestep_tpp)))
+      price =  MIN_PRICE * (1.0 - alpha *((@onestep_tpp / @onestep_lpg)))
       #return price / (1000*60/@timestep)
       return price
     end
@@ -212,4 +212,3 @@ class PowerCompany
     @trains[@weather] = []
   end
 end
-

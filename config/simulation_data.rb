@@ -7,4 +7,5 @@ module SimulationData
  SIM_DAYS=10 # シミュレーション日数
  SUNNY_BORDER=12000.0 # 晴れのボーダー
  CLOUDY_BORDER=5500.0 # 曇のボーダー
+ MIDNIGHT_INTERVAL=4
 end
