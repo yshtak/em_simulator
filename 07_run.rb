@@ -15,11 +15,13 @@ pca = PowerCompany.new
 Celluloid::Actor[pca.id] = pca
 agent_demands = []
 agent_solars = []
+agent_num = 3
 
 writers = {}
 ## add HomeAgent to Actor
-(0..4).to_a.each do |number|
+(0..agent_num-1).to_a.each do |number|
  ha_id = "nagoya_#{number}"
+ Dir.mkdir("./result/#{ha_id}") if !File.exist?("./result/#{ha_id}") # 出力保存場所作成
  writers.store(ha_id, open("./result/#{ha_id}/result_0.csv",'w'))
  writers[ha_id].write("buy,battery,predict,real,sell,weather\n")
  ha = HomeAgent.new({
@@ -31,7 +33,6 @@ writers = {}
  })
  #ha = HomeAgent.new({filter: 'pf',address:'nagoya', midnight_strategy: true,contractor: pca})
  Celluloid::Actor[ha.id] = ha
- Dir.mkdir("./result/#{ha_id}") if !File.exist?("./result/#{ha_id}") # 出力保存場所作成
  ## データの格納
  solarfile = open("#{DIRROOT}/data/solar/nagoya/0_plus30.csv")
  #solarfile = open("#{DIRROOT}/data/solar/nagoya/#{number}_plus30.csv")
@@ -55,7 +56,6 @@ end
 #number = 0 # 分割ナンバー
 number = 0
 sim_day = SIM_DAYS
-agent_num = 3
 
 for count in 1..sim_day do
   #output = open("./result/#{ha_id}/result_0.csv",'w')
@@ -96,11 +96,11 @@ for count in 1..sim_day do
    end
    Celluloid::Actor[pca.id].onestep_action time
   }
+  number += 1 if count % 5 == 0 ### 全体の出力ファイルのナンバリング
  (0..agent_num-1).each{|index|
    id = "nagoya_#{index}"
    if count % 5 == 0
       writers[id].close
-      number += 1
       writers[id] = open("./result/#{id}/result_#{number}.csv",'w')
       writers[id].write("buy,battery,predict,real,sell,weather\n")
    end
