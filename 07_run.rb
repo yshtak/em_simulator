@@ -77,9 +77,10 @@ for count in 1..sim_day do
   end
 
   (0..agent_num-1).each{|index|
-    ha_id = "nagoya_#{index}"
+    ha_id = "nagoya_#{PID_NUMBER}_#{index}"
     demands = agent_demands[index][start_index+count-1].split(',').map{|x| x.to_f}
     #solars = agent_solars[index][count-1].split(',').map{|x| x.to_f}
+    ap Celluloid::Actor[ha_id]
     #sum_solar = solars.inject(0.0){|x,sum|sum += x}
     Celluloid::Actor[ha_id].switch_weather_for_pf sum_solar 
     Celluloid::Actor[ha_id].set_demands demands
@@ -89,7 +90,7 @@ for count in 1..sim_day do
 
   (0..60*24/TIMESTEP-1).each{|time|
    (0..agent_num-1).to_a.each do |agentid|
-     ha_id = "nagoya_#{agentid}"
+     ha_id = "nagoya_#{PID_NUMBER}_#{agentid}"
      simdatas = Celluloid::Actor[ha_id].onestep_action time
      (0..simdatas[:buy].size-1).each{|i|
       writers[ha_id].write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]}\n"
@@ -100,7 +101,7 @@ for count in 1..sim_day do
   }
   number += 1 if count % 5 == 0 ### 全体の出力ファイルのナンバリング
  (0..agent_num-1).each{|index|
-   id = "nagoya_#{index}"
+   id = "nagoya_#{PID_NUMBER}_#{index}"
    if count % 5 == 0
       writers[id].close
       writers[id] = open("./result/#{id}/result_#{number}.csv",'w')

@@ -1,6 +1,6 @@
 Start
-D, [2013-08-26T10:44:10.353732 #2297] DEBUG -- : Terminating 8 actors...
-D, [2013-08-26T10:44:10.356597 #2297] DEBUG -- : Shutdown completed cleanly
+D, [2013-08-26T10:48:49.613868 #30694] DEBUG -- : Terminating 8 actors...
+D, [2013-08-26T10:48:49.615605 #30694] DEBUG -- : Shutdown completed cleanly
 07_run.rb:84:in `block (2 levels) in <main>': undefined method `switch_weather_for_pf' for nil:NilClass (NoMethodError)
 	from 07_run.rb:79:in `each'
 	from 07_run.rb:79:in `block in <main>'
@@ -21,7 +21,7 @@ D, [2013-08-26T10:44:10.356597 #2297] DEBUG -- : Shutdown completed cleanly
        :midnight_ratio => 0.8,
     :midnight_strategy => true,
     :midnight_interval => 4,
-           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3fbad6c31204) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
+           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3ffe8bf116ec) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
 }
 {
                    :id => "nagoya_4_1",
@@ -38,7 +38,7 @@ D, [2013-08-26T10:44:10.356597 #2297] DEBUG -- : Shutdown completed cleanly
        :midnight_ratio => 0.8,
     :midnight_strategy => true,
     :midnight_interval => 4,
-           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3fbad6c31204) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
+           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3ffe8bf116ec) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
 }
 {
                    :id => "nagoya_4_2",
@@ -55,16 +55,16 @@ D, [2013-08-26T10:44:10.356597 #2297] DEBUG -- : Shutdown completed cleanly
        :midnight_ratio => 0.8,
     :midnight_strategy => true,
     :midnight_interval => 4,
-           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3fbad6c31204) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
+           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3ffe8bf116ec) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
 }
-Day 1, Weather -> [Sunny]
+Day 1, Weather -> [Rainy]
 merge.rb:20:in `initialize': No such file or directory - ./result/result_0.csv (Errno::ENOENT)
 	from merge.rb:20:in `open'
 	from merge.rb:20:in `block (2 levels) in <main>'
 	from merge.rb:19:in `each'
 	from merge.rb:19:in `block in <main>'
-	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/lib/ruby/2.0.0/csv.rb:1266:in `open'
+	from /home/yshtak/.rbenv/versions/2.0.0-p0/lib/ruby/2.0.0/csv.rb:1266:in `open'
 	from merge.rb:15:in `<main>'
 	zip warning: name not matched: nagoya_4_*
-updating: result/merge.csv (stored 0%)
+  adding: result/merge.csv (stored 0%)
 End
