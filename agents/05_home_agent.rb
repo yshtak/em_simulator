@@ -202,7 +202,6 @@ class HomeAgent
      power_value = buy_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
      #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
      #sell_value = sell_power # 余剰電力を売る
-,
      #if (@weather == SUNNY || @weather == CLOUDY ) && cnt < 11*(60/TIMESTEP)# もし晴れだった場合
      # a = get_trains_power_average_from_time cnt
      # if a + temp_battery > @target

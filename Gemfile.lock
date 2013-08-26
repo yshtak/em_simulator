@@ -3,7 +3,7 @@ GEM
   specs:
     amq-protocol (1.7.0)
     awesome_print (1.1.0)
-    bunny (0.10.2)
+    bunny (0.10.4)
       amq-protocol (>= 1.6.0)
     celluloid (0.14.1)
       timers (>= 1.0.0)
