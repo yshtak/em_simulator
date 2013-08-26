@@ -11,6 +11,7 @@ require "#{DIRROOT}/config/simulation_data.rb"
 require "#{DIRROOT}/agents/01_power_company"
 #: 初期設定
 include SimulationData
+PID_NUMBER= ARGV[0].nil? ? 0 : ARGV[0]
 pca = PowerCompany.new
 Celluloid::Actor[pca.id] = pca
 agent_demands = []
@@ -20,7 +21,7 @@ agent_num = 3
 writers = {}
 ## add HomeAgent to Actor
 (0..agent_num-1).to_a.each do |number|
- ha_id = "nagoya_#{number}"
+ ha_id = "nagoya_#{PID_NUMBER}_#{number}"
  Dir.mkdir("./result/#{ha_id}") if !File.exist?("./result/#{ha_id}") # 出力保存場所作成
  writers.store(ha_id, open("./result/#{ha_id}/result_0.csv",'w'))
  writers[ha_id].write("buy,battery,predict,real,sell,weather\n")
@@ -57,12 +58,13 @@ end
 number = 0
 sim_day = SIM_DAYS
 
+start_index = rand(320) ## ランダムでいつのdemand及びソーラのデータを取得するか決める
 for count in 1..sim_day do
   #output = open("./result/#{ha_id}/result_0.csv",'w')
   #output.write("buy,battery,predict,real,sell,weather\n")
   #number = 0 # 分割ナンバー
   simdatas = []
-  solars = agent_solars[0][count-1].split(',').map{|x| x.to_f}
+  solars = agent_solars[0][start_index+count-1].split(',').map{|x| x.to_f}
   sum_solar = solars.inject(0.0){|x,sum|sum += x}
   Celluloid::Actor[pca.id].switch_weather sum_solar
   print "Day #{count}, "
@@ -76,7 +78,7 @@ for count in 1..sim_day do
 
   (0..agent_num-1).each{|index|
     ha_id = "nagoya_#{index}"
-    demands = agent_demands[index][count-1].split(',').map{|x| x.to_f}
+    demands = agent_demands[index][start_index+count-1].split(',').map{|x| x.to_f}
     #solars = agent_solars[index][count-1].split(',').map{|x| x.to_f}
     #sum_solar = solars.inject(0.0){|x,sum|sum += x}
     Celluloid::Actor[ha_id].switch_weather_for_pf sum_solar 
