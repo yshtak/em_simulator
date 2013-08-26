@@ -15,10 +15,15 @@ pca = PowerCompany.new
 Celluloid::Actor[pca.id] = pca
 agent_demands = []
 agent_solars = []
+agent_num = 3
 
+writers = {}
 ## add HomeAgent to Actor
-(0..4).to_a.each do |number|
+(0..agent_num-1).to_a.each do |number|
  ha_id = "nagoya_#{number}"
+ Dir.mkdir("./result/#{ha_id}") if !File.exist?("./result/#{ha_id}") # 出力保存場所作成
+ writers.store(ha_id, open("./result/#{ha_id}/result_0.csv",'w'))
+ writers[ha_id].write("buy,battery,predict,real,sell,weather\n")
  ha = HomeAgent.new({
    filter: 'pf',
    address:'nagoya', 
@@ -28,9 +33,9 @@ agent_solars = []
  })
  #ha = HomeAgent.new({filter: 'pf',address:'nagoya', midnight_strategy: true,contractor: pca})
  Celluloid::Actor[ha.id] = ha
- Dir.mkdir("./result/#{ha_id}") if !File.exist?("./result/#{ha_id}") # 出力保存場所作成
  ## データの格納
- solarfile = open("#{DIRROOT}/data/solar/nagoya/#{number}_plus30.csv")
+ solarfile = open("#{DIRROOT}/data/solar/nagoya/0_plus30.csv")
+ #solarfile = open("#{DIRROOT}/data/solar/nagoya/#{number}_plus30.csv")
  demandfile = open("#{DIRROOT}/data/demand/nagoya/#{number}.csv")
  demand_list = demandfile.readlines
  solar_list = solarfile.readlines
@@ -49,68 +54,63 @@ end
 #output = open('./result/nagoya_0/result_0.csv','w')
 #output.write("buy,battery,predict,real,sell,weather\n")
 #number = 0 # 分割ナンバー
-
+number = 0
 sim_day = SIM_DAYS
 
-(0..4).each do |agentid|
- ha_id = "nagoya_#{agentid}" 
-  output = open("./result/#{ha_id}/result_0.csv",'w')
-  output.write("buy,battery,predict,real,sell,weather\n")
-  number = 0 # 分割ナンバー
-  for count in 1..sim_day do
-   demands = agent_demands[agentid][count-1].split(',').map{|x| x.to_f}
-   solars = agent_solars[agentid][count-1].split(',').map{|x| x.to_f}
-   sum_solar = solars.inject(0.0){|x,sum|sum += x}
-   
-   print "Day #{count}, Sum Solar:#{sum_solar},"
-   if sum_solar > SUNNY_BORDER
+for count in 1..sim_day do
+  #output = open("./result/#{ha_id}/result_0.csv",'w')
+  #output.write("buy,battery,predict,real,sell,weather\n")
+  #number = 0 # 分割ナンバー
+  simdatas = []
+  solars = agent_solars[0][count-1].split(',').map{|x| x.to_f}
+  sum_solar = solars.inject(0.0){|x,sum|sum += x}
+  Celluloid::Actor[pca.id].switch_weather sum_solar
+  print "Day #{count}, "
+  if sum_solar > SUNNY_BORDER
     print "Weather -> [Sunny]\n"
-   elsif sum_solar > CLOUDY_BORDER
+  elsif sum_solar > CLOUDY_BORDER
     print "Weather -> [Cloudy]\n"
-   else
+  else
     print "Weather -> [Rainy]\n"
+  end
+
+  (0..agent_num-1).each{|index|
+    ha_id = "nagoya_#{index}"
+    demands = agent_demands[index][count-1].split(',').map{|x| x.to_f}
+    #solars = agent_solars[index][count-1].split(',').map{|x| x.to_f}
+    #sum_solar = solars.inject(0.0){|x,sum|sum += x}
+    Celluloid::Actor[ha_id].switch_weather_for_pf sum_solar 
+    Celluloid::Actor[ha_id].set_demands demands
+    Celluloid::Actor[ha_id].set_solars solars 
+     #print "Day #{count}, Sum Solar:#{sum_solar},"
+  }
+
+  (0..60*24/TIMESTEP-1).each{|time|
+   (0..agent_num-1).to_a.each do |agentid|
+     ha_id = "nagoya_#{agentid}"
+     simdatas = Celluloid::Actor[ha_id].onestep_action time
+     (0..simdatas[:buy].size-1).each{|i|
+      writers[ha_id].write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]}\n"
+      #output.write "#{buys[i]},#{bats[i]}\n"
+     }
    end
-
-   Celluloid::Actor[ha_id].switch_weather_for_pf sum_solar 
-   Celluloid::Actor[ha_id].set_demands demands
-   Celluloid::Actor[ha_id].set_solars solars 
-
-   #buys, bats = ha.date_action
-=begin
-   output_datas = (0..4).map{|index|
-    id = "nagoya_#{index}"
-    Celluloid::Actor[id].future.data_action
-   }
-   output_datas.each_with_index{|future,index|
-    p future
-    simdatas = future.value # ひとつひとつの出力結果
-    output = open("./result/#{index}/result_0.csv",'w')
-    output.write("buy,battery,predict,real,sell,weather\n")
-    (0..simdatas[:buy].size-1).each{|i|
-      output.write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]}\n"
-    }
-   }
-=end
-   simdatas = Celluloid::Actor[ha_id].date_action
-   (0..simdatas[:buy].size-1).each{|i|
-    output.write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]}\n"
-    #output.write "#{buys[i]},#{bats[i]}\n"
-   }
-
-   Celluloid::Actor[pca.id].day_action
-   Celluloid::Actor[ha_id].init_date # 初期化
-   Celluloid::Actor[pca.id].init_date # 初期化
-    
+   Celluloid::Actor[pca.id].onestep_action time
+  }
+  number += 1 if count % 5 == 0 ### 全体の出力ファイルのナンバリング
+ (0..agent_num-1).each{|index|
+   id = "nagoya_#{index}"
    if count % 5 == 0
-    output.close
-    number += 1
-    output = open("./result/#{ha_id}/result_#{number}.csv",'w')
-    output.write("buy,battery,predict,real,sell,weather\n")
+      writers[id].close
+      writers[id] = open("./result/#{id}/result_#{number}.csv",'w')
+      writers[id].write("buy,battery,predict,real,sell,weather\n")
    end
+   Celluloid::Actor[id].init_date # 初期化
+ }
+ Celluloid::Actor[pca.id].csv_out("./result/pca_#{count}.csv") if count % 5 == 0
+ Celluloid::Actor[pca.id].init_date # 初期化
+end
    #bats.each{|bat| battery_output.write("#{bat}\n") }
    #buys.each{|buy| buy_output.write("#{buy}\n")}
-  end
-end
 #output.close
 #battery_output.close
 #buy_output.close

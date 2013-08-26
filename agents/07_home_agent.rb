@@ -25,11 +25,13 @@ class HomeAgent
    id: "nagoya01",
    filter: 'none', # 未来予測のためのフィルターのタイプ
    max_strage: 5000.0, # 蓄電容量(Wh)
-   target: 2000.0, # 目標蓄電量(Wh)
+   target: 500.0, # 目標蓄電量(Wh)
+   buy_target_ratio: 0.4, # 30%
+   sell_target_ratio: 0.4, # 40%
    solars: [], # 15分毎の1日の電力発電データ
    demands: [], # 15分毎の1日の需要データ
    address: "unknown",
-   limit_power: 500.0,
+   limit_power: 2000.0,
    chunk_size: 5,
    midnight_ratio: 0.8, # 夜間に購入する目標充電率
    midnight_strategy: true, # 夜間戦略ありなし
@@ -50,7 +52,9 @@ class HomeAgent
   @address = config[:address]
   @weather = -1 # none 
   @filter = filter_init config[:filter]
-  @target = config[:target]
+  @target = config[:target] # 目標充電量
+  @buy_target = @max_strage * config[:buy_target_ratio] # 買いの購入の意思決定閾値（蓄電量）
+  @sell_target = @max_strage * config[:sell_target_ratio] # 買いの購入の意思決定閾値（蓄電量）
   @solars = config[:solars]
   @demands = config[:demands]
   @clock = 0
@@ -67,11 +71,28 @@ class HomeAgent
     SUNNY => [],
     RAINY => [],
     CLOUDY => []
+   },
+   p_sell_price:{
+    SUNNY => [],
+    RAINY => [],
+    CLOUDY => []
+   },
+   p_purchase_price:{
+    SUNNY => [],
+    RAINY => [],
+    CLOUDY => []
    }
   }
-  @buy_times = Array.new((1440/TIMESTEP),0.0) # 夜間に決定した間別の購入量配列
+  @buy_times = Array.new((1440/TIMESTEP),0.0) # 一日の間に時間別で購入する量の配列
+  @sell_times = Array.new((1440/TIMESTEP),0.0) # 一日の間に時間別に販売する量の配列
   @may_get_solar = 0.0 # 次の日に得られる発電量
   @yield = 0.0 # 家庭エージェントの利益
+  b = (1440/TIMESTEP)
+  weight_func = -> (x) {(6.0/(2.0*(b**2)-3.0 * (b**1) + 1)) * (x-b)**2 } # 重み関数
+  @weights = [] # 重み関数の初期化（徐々に重みが減っていく.）
+  (0..b-1).each do |index|
+    @weights << weight_func.call(index) ## 重み関数
+  end
  end
 
  # 需要量のセット
@@ -86,15 +107,238 @@ class HomeAgent
   @solars = datas.map{|x| x/2.0 } # 発電効率50%
  end
 
+ ### version 0.7 ##########################################
+ # 一日の行動
+ def onestep_action time
+   @clock = time
+   self.action time
+   #self.decide_sell_power #
+   #self.decide_buy_power #
+ end
+
+ # 一日に消費する消費量の推定
+ #
+ def estimate_power_consumption_per_day
+
+ end
+
+ # 購入する電力量の決定 
+ def action cnt
+   timeline = ""
+   results = [] # 買った電力量
+   bs = [] # 蓄電池の状況
+   predicts = [] # 予測値(実験用)
+   reals = []
+   sells = [] # simdatas のsellsのポインター
+   buys = []
+   demands = []
+   simdatas = {buy: results, battery: bs, predict: predicts, real: reals, sell: sells, demand: demands} # 結果
+   if @filter.nil? # Filter使わないとき
+    if cnt > @midnight_interval*(60/TIMESTEP)  && cnt < 23*(60/TIMESTEP) # タイムステップ（最初の1時間と最後の1時間を除く）
+     crnt_solar = @solars[cnt]
+     crnt_demand = @demands[cnt]
+     temp_battery = @battery
+     power_value = buy_power_2(crnt_demand,crnt_solar) # 予測考慮なし
+
+     results << power_value
+     #sells << sell_value
+     if @buy_times[0] != 0.0 # 買う戦略をした時のみ発動
+      @sells = 0.0 if @battery > @target && cnt < 13*(60/TIMESTEP) && @midnight_strategy
+     end
+     sells << @sells
+     predicts << crnt_solar
+     reals << crnt_solar
+     #### 描画部分
+     #if power_value != 0.0
+     # timeline += " o"
+     #elsif @sells != 0.0
+     # timeline += " x"
+     #else
+     # timeline += " _"
+     #end
+     #print "\e[33m購入状況:#{timeline}\e[0m\r"
+
+    else # 最初の1時間と最後の一時間
+     #@filter.train_per_step @solars[cnt] # 学習はする（つじつま合わせ）
+     if @midnight_strategy # 夜間戦略あり
+      reals << @solars[cnt]
+      predicts << @solars[cnt]
+      results << @buy_times[cnt] # 予め買う予定の電力量の購入
+      demand = @demands[cnt] # 消費量
+      @battery += (@buy_times[cnt] - demand) # Battery更新
+      sells << 0.0
+      ### 描画部分
+      #timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
+      #print "\e[33m購入状況:#{timeline}\e[0m\r"
+     else # 夜間戦略なし
+      crnt_solar = @solars[cnt]
+      predicts << crnt_solar
+      reals << crnt_solar
+      demand = @demands[cnt] # 消費量
+      demands << demand
+      if @battery - demand < @target # バッテリー容量が目標値を下回るとき
+       results << @target - @battery + demand # 目標値になるように電力を買う
+       sells << 0.0
+       @battery = @target
+      else
+       results << 0.0
+       sells << sell_power 
+      end
+      ### 描画部分
+      #if @battery - demand < @target
+      # timeline += " o"
+      #elsif @sells > 0.0
+      # timeline += " x"
+      #else
+      # timeline += " _"
+      #end
+      #print "\e[33m購入状況:#{timeline}\e[0m\r"
+     end
+    end
+   elsif @filter.eql?("normal") # 平均した曲線モデルで予測する場合
+    if cnt > @midnight_interval*(60/TIMESTEP)  && cnt < 23*(60/TIMESTEP) # タイムステップ（最初の1時間と最後の1時間を除く）
+     crnt_solar = @solars[cnt]
+     #next_solar = @weather_models[@weather][cnt+1]
+     next_solar = @filter.ave_models[@weather][cnt+1]
+     #next_solar = @weather_model[cnt+1]
+     crnt_demand = @demands[cnt]
+     next_demand = @demands[cnt+1]
+
+     #power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
+     power_value,sell_value = buy_and_sell_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
+     #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
+     #sell_value = sell_power # 余剰電力を売る
+
+     results << power_value
+     sells << @sells
+     #sells << sell_value
+     predicts << next_solar
+     reals << crnt_solar
+    else
+     next_solar = @filter.ave_models[@weather][cnt]
+     #next_solar = @weather_models[@weather][cnt]
+     #next_solar = @weather_model[cnt+1]
+     predicts << next_solar
+     reals << @solars[cnt]
+ 
+     if @battery < @target
+      results << @target - @battery
+      sells << 0.0 
+      @battery = @target
+     else
+      results << 0.0
+      sells << sell_power 
+     end
+
+    end 
+   else # Particle Filter を使った場合
+    if cnt > @midnight_interval*(60/TIMESTEP)  && cnt < 23*(60/TIMESTEP) # タイムステップ（最初の1時間と最後の1時間を除く）
+     crnt_solar = @solars[cnt]
+     #next_solar = @filter.next_value_predict(crnt_solar, cnt)
+     next_solar = @filter.predict_next_value(crnt_solar, cnt)
+     @filter.train_per_step crnt_solar
+     crnt_demand = @demands[cnt]
+     next_demand = @demands[cnt+1]
+     demands << crnt_demand
+     #power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する（通常版）
+     temp_battery = @battery # 前の蓄電量を退避(買いすぎの対処
+     power_value, sell_value = buy_and_sell_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
+     #power_value, sell_value = buy_and_sell_power(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
+     #power_value = buy_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
+     #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
+     #sell_value = sell_power # 余剰電力を売る
+
+     results << power_value
+     #sells << sell_value
+     #### 朝のうちに買っておいた蓄電量をあまり売らない（買ってから蓄電池目標量を下回った時だけ）
+     if @buy_times[0] != 0.0 # 買う戦略をした時のみ発動
+      if @battery > @target && cnt < 10*(60/TIMESTEP) && @midnight_strategy
+       @battery += @sells # 売ろうとした電力を回復
+       @sells = 0.0 # やっぱり売らない
+      end
+     end
+     sells << sell_value
+     predicts << next_solar
+     reals << crnt_solar
+     #results << (power_value - @battery > 0.0 ? power_value - @battery : 0.0)
+     #### 描画部分
+     #if power_value != 0.0
+     # timeline += " o"
+     #elsif @sells != 0.0
+     # timeline += " x"
+     #else
+     # timeline += " _"
+     #end
+     #print "\e[33m購入状況:#{timeline}\e[0m\r"
+     send_message "buy:#{power_value},sell:#{sell_value}" 
+
+    else # 夜中と早朝の戦略
+     @filter.train_per_step @solars[cnt] # 学習はする（つじつま合わせ）
+     if @midnight_strategy && @trains[:p_sell_price][@weather].size == 0 # 夜間の戦略（かつ学習データがない場合）
+      reals << @solars[cnt]
+      predicts << @solars[cnt]
+      demand = @demands[cnt] # 消費量
+      demands << demand
+      @battery += (@buy_times[cnt]-demand) # Battery更新
+      @buy_times[cnt] = @max_strage - @battery + @buy_times[cnt] if @battery > @max_strage
+      @battery = @max_strage if @battery > @max_strage
+      results << @buy_times[cnt] # 予め買う予定の電力量の購入
+      sells << 0.0
+      ### 描画部分
+      #timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
+      #print "\e[33m購入状況(#{(100*@battery/@max_strage).to_i}%):#{timeline}\e[0m\r"
+      send_message "buy:#{@buy_times[cnt]},sell:#{sell_value}"
+     else # 夜間戦略なし
+      next_solar = @filter.predict_next_value(@solars[cnt], cnt)
+      predicts << next_solar
+      reals << @solars[cnt]
+      demand = @demands[cnt] # 消費量
+      demands << demand
+      if @battery - demand < @target
+       results << @target - @battery + demand
+       sells << 0.0
+       @battery = @target 
+      else
+       results << 0.0
+       sells << sell_power # Batteryも更新される
+      end
+      @battery -= demand
+      ### 描画部分
+      #if @battery - demand < @target
+      # timeline += " o"
+      #elsif @sells > 0.0
+      # timeline += " x"
+      #else
+      # timeline += " _"
+      #end
+      #print "\e[33m購入状況(#{(100*@battery/@max_strage).to_i}%):#{timeline}\e[0m\r"
+      send_message "buy:#{power_value},sell:#{sell_value}" 
+     end
+    end
+   end
+   bs << @battery
+   #print "\n"
+   #ap @battery
+   simdatas[:weather] = @weather
+   return simdatas
+ end
+
+ # 
+ def decide_sell_power
+ end 
+
+ ###########################################################
+
  # 一日の行動をする
  def date_action
   timeline = ""
   results = [] # 買った電力量
   bs = [] # 蓄電池の状況
-  predicts = [0.0] # 予測値(実験用)
+  predicts = [] # 予測値(実験用)
   reals = []
   sells = [] # simdatas のsellsのポインター
   buys = []
+  demands = []
   simdatas = {buy: results, battery: bs, predict: predicts, real: reals, sell: sells} # 結果
   for cnt in 0..(1440/TIMESTEP-1) do
    if @filter.nil? # Filter使わないとき
@@ -103,6 +347,7 @@ class HomeAgent
      crnt_demand = @demands[cnt]
      temp_battery = @battery
      power_value = buy_power_2(crnt_demand,crnt_solar) # 予測考慮なし
+     
      #sell_value = sell_power # 余剰電力を売る
 
      #if (@weather == SUNNY || @weather == CLOUDY ) && cnt < 15*(60/TIMESTEP)# もし晴れだった場合
@@ -176,12 +421,12 @@ class HomeAgent
      next_demand = @demands[cnt+1]
 
      #power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
-     power_value = buy_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
+     power_value,sell_value = buy_and_sell_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
      #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
      #sell_value = sell_power # 余剰電力を売る
 
      results << power_value
-     sells << @sells
+     sells << sell_value
      #sells << sell_value
      predicts << next_solar
      reals << crnt_solar
@@ -212,7 +457,7 @@ class HomeAgent
      next_demand = @demands[cnt+1]
      #power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する（通常版）
      temp_battery = @battery # 前の蓄電量を退避(買いすぎの対処
-     power_value = buy_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
+     power_value,sell_value = buy_and_sell_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
      #power_value = buy_power_3(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する
      #sell_value = sell_power # 余剰電力を売る
 
@@ -233,7 +478,7 @@ class HomeAgent
        @sells = 0.0 # やっぱり売らない
       end
      end
-     sells << @sells 
+     sells << sell_value 
      predicts << next_solar
      reals << crnt_solar
      #results << (power_value - @battery > 0.0 ? power_value - @battery : 0.0)
@@ -323,98 +568,147 @@ class HomeAgent
  # 戦略は需要量から発電量を引いた値の正負で変わることに注意
  # 内部プログラムのt0,t1は絶対値であり，各ケース内の場合分け
  # で用いられる.
- def buy_power d0, d1, s0, s1
+ def buy_and_sell_power d0, d1, s0, s1,time
   max_buy = 500.0
+  fix_buy_power = @buy_times[time] # 最初に決めておいた購入量
+  fix_sell_power = @sell_times[time]
   t0 = (d0 - s0).abs
   t1 = (d1 - s1).abs
-  value = 0.0 # 買電量の初期化
+  buy_value = fix_buy_power # 買電量の初期化
+  sell_value = fix_sell_power # 売電量の初期化
+  ## 単純なピーク時間を判断する（14時まえはなるべく少なめに電力を購入する（天候によって偏りあり））
+  beta = 1.0 # 天候による日中に差し掛かるまでの間の消費者行動係数 (( 最後に調整する
+  if time < 14 * (60/TIMESTEP)
+    case @weather
+    when SUNNY
+      beta = 0.2 # 比重あり
+    when CLOUDY
+      beta = 0.25 # 比重あり
+    when RAINY
+      beta = 1.0 # 比重なし
+    end
+  end
   #print "solar:#{s0}, demand:#{d0}\n"
+  ################# １日始まるときに決定した購入量について
+  if fix_buy_power == 0.0 # 買おうとしていない場合
+    if @battery  - (d0 - s0) > @buy_target ## 買う行動の目標となるしきい値を超えるかどうか
+      @battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0 
+      @battery = @battery - d0 + s0
+      return 0.0, 0.0 # 購入しない
+    end
+  end
+  ################## 逐次的による戦略
   if (d0 - s0) > 0 && (d1 - s1) > 0 # Case 1 ------------------
    if @battery - (t0  + t1) < 0 # 予測と現在の需要和が現時点の蓄電量を超えるとき（空になる）
-    value = @battery + t1 > @max_strage ? @max_strage - @battery : t0 + t1
-   elsif @battery - (t0 + t1) > 0 && @battery - (t0 + t1) < @target # 未来予測後も目標値以下のとき
+    buy_value = @battery + t1 > @max_strage ? @max_strage - @battery : t0 + t1
+   elsif @battery - (t0 + t1) > 0 && @battery - (t0 + t1) < @buy_target # 未来予測後も目標値以下のとき
     value = @battery + t1 <= @max_strage ? t0 + t1 : @max_strage - @battery
     #p t1
     #p value
    elsif @battery - (t1 + t0) <= @max_strage # それ以外は買わない
     # 買わない
     #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0 
-    sell_power_2
+    sell_value = sell_power
    end
   elsif d0 - s0 > 0 && d1 - s1 <= 0 # Case 2 -------------------
-   if @battery - (t0 - t1) > 0 && @battery - (t0 - t1) <= @target
-    value = t0 - t1
+   if @battery - (t0 - t1) > 0 && @battery - (t0 - t1) <= @buy_target
+    buy_value = t0 - t1
     #p value
-   elsif @battery - (t0 - t1) > @target
+   elsif @battery - (t0 - t1) > @buy_target
     if @battery - t0 < 0
-     value =  t0 + @target - @battery
+     buy_value =  t0 + @buy_target - @battery
      #p value
     elsif @battery - t0 > 0
      # 買わない
      #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
-     sell_power_2
+     sell_value = sell_power
     end
    end
    # Exception
-   return 0.0
+   return 0.0, 0.0
   elsif d0 - s0 <= 0 && d1 - s1 > 0 # Case 3 -------------------
-   if @battery + t0 - t1 >= @target
+   if @battery + t0 - t1 >= @buy_target
     # 買わない
     #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
-   elsif @battery + t0 - t1 < @target
+   elsif @battery + t0 - t1 < @buy_target
     if @battery + t0 > @max_strage
      # 買わない
      #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
-     sell_power_2
+     sell_value = sell_power
     elsif @battery + t0 <= @max_strage
      #value = @max_strage - (@battery + t1)
-     value = t1 - t0
+     buy_value = t1 - t0
      #p value
     end
    end
   elsif d0 - s0 <= 0 && d1 - s1 <= 0 # Case 4 -------------------
-   if @battery + t0 + t1 < @target
-    value = @target - (@battery + (t0 + t1))
+   if @battery + t0 + t1 < @buy_target
+    buy_value = @buy_target - (@battery + (t0 + t1))
    else
     #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
-    sell_power_2
+    sell_value = sell_power
    end
   end
-  value = max_buy > value ? value : max_buy
+  buy_value = max_buy > buy_value ? buy_value : max_buy
+  buy_value *= beta # 電力が得られ始める段階ではあまり買わない
   @battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0 
-  @battery = @battery - d0 + value
-  return value 
+  @battery = @battery - d0 + buy_value
+  return buy_value, sell_value
  end
 
  # ２つ先がどうなるかも考慮に入れる
  # 買いが乱高下しないようにするための戦略
  # 現在時刻:time
- def buy_power_2step d0, d1, s0, s1, time
+ def buy_and_sell_power_2step d0, d1, s0, s1, time
   max_buy = 500.0
+  fix_buy_power = @buy_times[time] # 最初に決めておいた購入量
+  fix_sell_power = @sell_times[time] # 最初に決めておいた購入量
   t0 = (d0 - s0).abs
   t1 = (d1 - s1).abs
   # 二期先のデータを定義する
   d2 = @demands[time+2]
   s2 = @filter.ave_models[@weather][time+2]
   #s2 = @weather_models[@weather][time+2]
-  t2 = (d2 - s2).abs
+  t2 = (d2 - s2).abs # 需要の差分
+  ## 単純なピーク時間を判断する（14時まえはなるべく少なめに電力を購入する（天候によって偏りあり））
+  beta = 1.0 # 天候による日中に差し掛かるまでの間の消費者行動係数 (( 最後に調整する
+  if time < 14 * (60/TIMESTEP)
+    case @weather
+    when SUNNY
+      beta = 0.2 # 比重あり
+    when CLOUDY
+      beta = 0.25 # 比重あり
+    when RAINY
+      beta = 1.0 # 比重なし
+    end
+  end
  
-  value = 0.0 # 買電量の初期化
+  buy_value = fix_buy_power # 買電量の初期化
+  sell_value = fix_sell_power # 売電量の初期化
+  ################# １日始まるときに決定した購入量について
+  if fix_buy_power == 0.0 # 買おうとしていない場合
+    if @battery  - (d0 - s0) > @buy_target ## 買う行動の目標となるしきい値を超えるかどうか
+      @battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0 
+      @battery = @battery - d0 + s0
+      return 0.0, 0.0 # 購入しない
+    end
+  end
+  ################## 逐次的による戦略
   #print "solar:#{s0}, demand:#{d0}\n"
   if (d0 - s0) > 0 && (d1 - s1) > 0 # Case 1 ------------------
    if @battery - (t0  + t1) < 0 # 予測と現在の需要和が現時点の蓄電量を超えるとき（空になる）
-    value = @battery + t1 > @max_strage ? @max_strage - @battery : t0 + t1
-    if d2 - s2 > 0
-     value = (value + t2)*0.7/2.0 
+    buy_value = @battery + t1 > @max_strage ? @max_strage - @battery : t0 + t1
+    if d2 - s2 > 0 # ２つ先の需要と供給の差(需要が多いかどうか) 
+     buy_value = (buy_value + t2)*0.7 / 2.0 
     else
-     value = value - t2 < 0.0 ? 0.0 : value - t2
+     buy_value = buy_value - t2 < 0.0 ? 0.0 : buy_value - t2
     end
-   elsif @battery - (t0 + t1) > 0 && @battery - (t0 + t1) < @target # 未来予測後も目標値以下のとき
-    value = @battery + t1 <= @max_strage ? t0 + t1 : @max_strage - @battery
+   elsif @battery - (t0 + t1) > 0 && @battery - (t0 + t1) < @buy_target # 未来予測後も目標値以下のとき
+    buy_value = @battery + t1 <= @max_strage ? t0 + t1 : @max_strage - @battery
     if d2 - s2 > 0
-     value = (value + t2)*0.7/2.0
+     buy_value = (buy_value + t2)*0.7/2.0
     else
-     value = value - t2 < 0.0 ? 0.0 : value - t2
+     buy_value = buy_value - t2 < 0.0 ? 0.0 : buy_value - t2
     end
     #p t1
     #p value
@@ -422,86 +716,94 @@ class HomeAgent
     # 買わない
     #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
     if (d2 - s2) > 0
-     value = t2 if @battery - (t1 + t0) - t2 < @target
+     buy_value = t2 if @battery - (t1 + t0) - t2 < @buy_target
     end
-    sell_power_2
+    buy_value = 0.0
+    sell_value = sell_power
    end
   elsif d0 - s0 > 0 && d1 - s1 <= 0 # Case 2 -------------------
-   if @battery - (t0 - t1) > 0 && @battery - (t0 - t1) <= @target
-    value = t0 - t1
+   if @battery - (t0 - t1) > 0 && @battery - (t0 - t1) <= @buy_target
+    buy_value = t0 - t1
     if d2 - s2 > 0
-     value = (value + t2)*0.7/2.0 
+     buy_value = (buy_value + t2)*0.7/2.0 
     else
-     value = value - t2 < 0.0 ? 0.0 : value - t2
+     buy_value = buy_value - t2 < 0.0 ? 0.0 : buy_value - t2
     end
     #p value
-   elsif @battery - (t0 - t1) > @target
+   elsif @battery - (t0 - t1) > @buy_target
     if @battery - t0 < 0
-     value =  t0 + @target - @battery
+     buy_value =  t0 + @buy_target - @battery
      if d2 - s2 > 0
-      value = (value + t2)*0.7/2.0
+      buy_value = (buy_value + t2)*0.7/2.0
      else
-      value = value - t2 < 0.0 ? 0.0 : value - t2
+      buy_value = buy_value - t2 < 0.0 ? 0.0 : buy_value - t2
      end
      #p value
     elsif @battery - t0 > 0
      # 買わない
      #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
      if d2 - s2 > 0
-      value = t2 if @battery - t0 - t2 < @target
+      buy_value = t2 if @battery - t0 - t2 < @buy_target
      end
-     sell_power_2
+     buy_value = 0.0
+     sell_value = sell_power
     end
    end
    # Exception
-   return 0.0
+   return buy_value, sell_value
   elsif d0 - s0 <= 0 && d1 - s1 > 0 # Case 3 -------------------
-   if @battery + t0 - t1 >= @target
+   if @battery + t0 - t1 >= @buy_target
     # 買わない
     #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
     if d2 - s2 > 0
-     value = t2 if @battery + t0 -t1 - t2 < @target
+     buy_value = t2 if @battery + t0 -t1 - t2 < @buy_target
     end
-    sell_power_2
-   elsif @battery + t0 - t1 < @target
+    buy_value = 0.0
+    sell_value = sell_power
+   elsif @battery + t0 - t1 < @buy_target
     if @battery + t0 > @max_strage
      # 買わない
      #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
      if d2 - s2 > 0
-      value = t2 if @battery + t0 - t2 < @target
+      buy_value = t2 if @battery + t0 - t2 < @buy_target
      end
-     sell_power_2
+     buy_value = 0.0
+     sell_value = sell_power
     elsif @battery + t0 <= @max_strage
      #value = @max_strage - (@battery + t1)
-     value = t1 - t0
+     buy_value = t1 - t0
      if d2 - s2 > 0
-      value = (value + t2)*0.7/2.0 
+      buy_value = (buy_value + t2)*0.7/2.0 
      else
-      value = value - t2 < 0.0 ? 0.0 : value - t2
+      buy_value = buy_value - t2 < 0.0 ? 0.0 : buy_value - t2
      end
      #p value
     end
    end
   elsif d0 - s0 <= 0 && d1 - s1 <= 0 # Case 4 -------------------
-   if @battery + t0 + t1 < @target
-    value = @target - (@battery + (t0 + t1))
+   if @battery + t0 + t1 < @buy_target
+    buy_value = @buy_target - (@battery + (t0 + t1))
     if d2 - s2 > 0 ## 2013-07-31変更
-     value = (value + t2)*0.7/2.0 
+     buy_value = (buy_value + t2)*0.7/2.0 
     else
-     value = value - t2 < 0.0 ? 0.0 : value - t2
+     buy_value = buy_value - t2 < 0.0 ? 0.0 : buy_value - t2
     end
    else
     #@battery = @battery + s0 > @max_strage - d0 ? @max_strage - d0  : @battery + s0
     if d2 - s2 > 0
-     value = t2 if @battery + t0 + t1 - t2 < @target
+     buy_value = t2 if @battery + t0 + t1 - t2 < @buy_target
     end
-    sell_power_2
+    buy_value = 0.0
+    sell_value = sell_power
    end
   end
-  value = max_buy > value ? value : max_buy
-  @battery = @battery + s0 - d0 + value > @max_strage ? @max_strage : @battery + s0 - d0 + value
+  buy_value = max_buy > buy_value ? buy_value : max_buy
+  buy_value *= beta # 電力が得られ始める段階ではあまり買わない
+  buy_value = 0.0 if buy_value < 0.0 # マイナス回避
+  sell_value = 0.0 if sell_value < 0.0 # マイナス回避
+  @battery = @battery + s0 - d0 + buy_value > @max_strage ? @max_strage : @battery + s0 - d0 + buy_value
   #@battery = @battery - d0 + value
-  return value  
+  return buy_value, sell_value 
  end
 
  # 現在時刻のみ見る場合の戦略
@@ -578,12 +880,12 @@ class HomeAgent
 
  # Sell 2
  def sell_power2nd d1, s1
-  over_condition = @battery - @target < 500.0
+  over_condition = @battery - @sell_target < 500.0
   result = 0.0
   if over_condition
     return result
   else
-   result = @battery - @target - 500.0 > 500.0 ? 500.0 : @battery - @target - 500.0
+   result = @battery - @sell_target - 500.0 > 500.0 ? 500.0 : @battery - @sell_target - 500.0
    @battery = @battery - result
    return result 
   end
@@ -591,12 +893,12 @@ class HomeAgent
 
  # 電力を売る
  def sell_power 
-  over_condition = @battery - @target < 500.0
+  over_condition = @battery - @sell_target < 500.0
   result = 0.0
   if over_condition
     return result
   else
-   result = @battery - @target - 500.0 > 500.0 ? 500.0 : @battery - @target - 500.0
+   result = @battery - @sell_target - 500.0 > 500.0 ? 500.0 : @battery - @sell_target - 500.0
    @battery = @battery - result
    return result 
   end
@@ -617,11 +919,13 @@ class HomeAgent
  def init_date
   @clock = 0
   @filter.particles_zero unless @filter.nil?
+  @buy_times = @buy_times.map{|data| 0.0}
   train_data_per_day
   #@filter.init_data if !@filter.nil? && !@filter.eql?("normal")
  end
 
  ## 夜間にチェックする
+ # 最適解の計算も行う
  def select_time_and_value_to_buy
   cnt = 0
   chunk = 0
@@ -640,21 +944,18 @@ class HomeAgent
   sum_solar = @trains[:solars][@weather].inject(0.0){|acc, x| acc+=x}
   #sum_demand = @demands.inject(0.0){|acc,x| acc+=x}
   sum_solar /= chunk
-  ap sum_solar 
-  ap sum_demand
-  ap (sum_solar -sum_demand)
   ##################################################################
   ## 夜間の電力購入の戦略
   ##
   ##@may_get_solar = sum_solar / (@trains[:solars][@weather].size / (1440/TIMESTEP))
-  midnight_interval = 4 
-  per_demand = ->(value) {(value/(midnight_interval*(60/TIMESTEP)))} # ４時間分割する方程式
+  buy_interval = @trains[:p_sell_price][@weather].size > 0 ? (@weather == SUNNY ? 12 : 24) : MIDNIGHT_INTERVAL 
+  per_demand = ->(value) {(value/(buy_interval*(60/TIMESTEP)))} # ４時間分割する方程式
   
   one = 0.0
   if sum_solar - sum_demand > 0.0 && train_demands.size > 0 && @trains[:solars][@weather].size > 0# 次の日の発電量と需要の差が
    # 買わない
    midnight_demand = 0.0
-   for index in (0..(midnight_interval*(60/TIMESTEP)-1)) do
+   for index in (0..(buy_interval*(60/TIMESTEP)-1)) do
     tmp_de = 0.0
     for j in (0..chunk-1) do
      tmp_de += train_demands[index + (1440/TIMESTEP)*j]
@@ -662,7 +963,7 @@ class HomeAgent
     midnight_demand += tmp_de/chunk if chunk != 0
    end
    tmp_buy = midnight_demand + @max_strage * @midnight_ratio - @battery
-   ap "\t夜間に購入する電力量：#{tmp_buy}"
+   #ap "\t夜間に購入する電力量：#{tmp_buy}"
    #tmp_buy =  @max_strage * @midnight_ratio - @battery
    one = per_demand.call tmp_buy # 四時間分割
   else ## 発電量が下回るとき（主に雨とか曇りに起きやすい）
@@ -672,7 +973,7 @@ class HomeAgent
    #else # 最大容量を超えるとき 
     #### 深夜N時間の消費量総和と購入する塩梅で調整
     midnight_demand = 0.0
-    for index in (0..(midnight_interval*(60/TIMESTEP)-1)) do
+    for index in (0..(buy_interval*(60/TIMESTEP)-1)) do
      tmp_de = 0.0
      for j in (0..chunk-1) do
       tmp_de += train_demands[index + (1440/TIMESTEP)*j]
@@ -680,18 +981,92 @@ class HomeAgent
      midnight_demand += tmp_de/chunk if chunk != 0
     end
     tmp_buy = midnight_demand + @max_strage * @midnight_ratio - @battery
-    ap "\t夜間に購入する電力量：#{tmp_buy}"
+    #ap "\t夜間に購入する電力量：#{tmp_buy}"
     #tmp_buy =  @max_strage * @midnight_ratio - @battery
     one = per_demand.call tmp_buy # 四時間分割
    #end
   end
-  print "\t \e[32m今日の夜間の購入量情報：\n"
-  print "\t >> 予測需要量：#{sum_demand}\n\t >> 予測発電量：#{sum_solar}\n\t >> ワンステップごとの購入量：#{one}\n\e[0m" 
+  #print "\t \e[32m今日の夜間の購入量情報：\n"
+  #print "\t >> 予測需要量：#{sum_demand}\n\t >> 予測発電量：#{sum_solar}\n\t >> ワンステップごとの購入量：#{one}\n\e[0m" 
   
   # 買う時間を決定
-  for i in 0..(4*((60/TIMESTEP))-1)
-   @buy_times[i] = one
-  end  
+  #well_buy_times = self.well_sort_buy_power # 前日の電力が安かった時間順序の配列取得(時間の配列)
+  well_buy_times = self.optimum(@trains[:p_sell_price][@weather],self.smooth_demand_train_data) # 前日の電力が安かった時間順序の配列取得(時間の配列)
+  well_sell_times = self.well_sort_sell_power # 前日の電力が安かった時間順序の配列取得(時間の配列)
+
+  for i in 0..(buy_interval*((60/TIMESTEP))-1)
+    if well_buy_times.size > 0
+      ## 何時に買ったら安いかの計算(購入量は固定)
+      @buy_times[well_buy_times[i]] = one * @weights[i] # 重み付き
+    else
+      if i*2-1 >= (buy_interval*((60/TIMESTEP))-1)
+        # 夜間
+        index = (((24*60/TIMESTEP)-4*buy_interval)) + i
+        @buy_times[index] = one
+      else
+        ## 朝の購入
+        @buy_times[i] = one 
+      end
+    end
+  end
+  #p @buy_times
+  #well_buy_times = self.when_buy_power # 前日の電力が安かった時間順序の配列取得(時間の配列)
+  #well_sell_times = self.when_sell_power # 前日の電力が安かった時間順序の配列取得(時間の配列)
+  #p self.well_sort_sell_power # 前日の電力が安かった時間順序の配列取得(時間の配列)
+ end
+
+ ##
+ # いつ電力
+ def optimum prices, demands
+   condition = 500 # 一度に購入できる電力量は500w
+   scores = []
+   ## スコアを計算する（スコアは低ければ低いほど良い）
+   prices.each_with_index{|price,index| 
+     scores << price *(1.0/(demands[index]+0.1)) # スコア関数
+   }
+   size = scores.size
+   steps = (0..size-1).to_a
+   steps.sort!{|i1,i2| scores[i1] <=> scores[i2]}
+   return steps
+ end
+
+ ##
+ # 安かった時間の順番を配列で返すメソッド
+ # return steps
+ def well_sort_buy_power
+   train = @trains[:p_sell_price][@weather]
+   size = train.size
+   steps = (0..size-1).to_a
+   steps.sort!{|i1,i2| train[i1] <=> train[i2] }
+   return steps
+ end
+
+ ##
+ # 高かった買取価格の時間の順番の配列を返す
+ # return steps
+ def well_sort_sell_power
+   train = @trains[:p_purchase_price][@weather]
+   size = train.size
+   steps = (0..size-1).to_a
+   steps.sort!{|i1,i2| train[i2] <=> train[i1]}
+   return steps
+ end
+
+ ##
+ # 需要の学習データから平均的な一日の需要データを取得
+ def smooth_demand_train_data
+   demand_trains = @trains[:demands][@weather]
+   chunk = demand_trains.size/(1440/TIMESTEP)
+   result = Array.new((1440/TIMESTEP),0.0)
+   (0..(1440/TIMESTEP-1)).each do |cnt|
+     sum = 0.0
+     for i in 0..chunk-1
+       index = i * (1440/TIMESTEP)
+       sum += demand_trains[index]
+     end
+     result[cnt] = (sum / chunk.to_f)
+   end
+   return result
  end
 
  #####
@@ -707,6 +1082,7 @@ class HomeAgent
   else
    @weather = RAINY
   end
+  ####
   select_time_and_value_to_buy # 夜間におよその購入量と蓄電量を概算する 
  end
 
@@ -722,10 +1098,20 @@ class HomeAgent
    @trains[:demands][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1)
    @trains[:solars][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1)
   end
+  ## 価格のデータを学習
+  ppp = []
+  psp = []
+  @my_contractor.trains[@weather].each do |data|
+    psp << data[:sell_price]
+    ppp << data[:purchase_price]
+  end
+  @trains[:p_purchase_price][@weather] = ppp
+  @trains[:p_sell_price][@weather] = psp
  end
 
  #####
  # 朝5時に発動する
+ #
  def get_trains_power_average_from_time time
   sum_power = 0.0
   size = 15 * (60/TIMESTEP) - 1
