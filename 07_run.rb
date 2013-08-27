@@ -105,17 +105,17 @@ for count in 1..sim_day do
    end
    Celluloid::Actor[pca.id].onestep_action time
   }
-  number += 1 if count % 5 == 0 ### 全体の出力ファイルのナンバリング
+  number += 1 if count % 10 == 0 ### 全体の出力ファイルのナンバリング
  (0..agent_num-1).each{|index|
    id = "#{AREA}_#{PID_NUMBER}_#{index}"
-   if count % 5 == 0
+   if count % 10 == 0
       writers[id].close
       writers[id] = open("./result/#{id}/result_#{number}.csv",'w')
       writers[id].write("buy,battery,predict,real,sell,weather,demand\n")
    end
    Celluloid::Actor[id].init_date # 初期化
  }
- Celluloid::Actor[pca.id].csv_out("./result/pca_#{count}.csv") if count % 5 == 0
+ Celluloid::Actor[pca.id].csv_out("./result/pca_#{count}.csv") if count % 10 == 0
  Celluloid::Actor[pca.id].init_date # 初期化
 end
    #bats.each{|bat| battery_output.write("#{bat}\n") }
