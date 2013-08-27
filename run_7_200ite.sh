@@ -1,7 +1,7 @@
 #!/bin/bash
 COUNT=$1
 AREA=$2
-TODAY=`date -d '' '+%Y_%m_%d_'`+$COUNT
+TODAY=`date -d '' '+%Y_%m_%d_'`
 echo "Start"
 bundle exec ruby 07_run.rb $COUNT
 sleep 1
