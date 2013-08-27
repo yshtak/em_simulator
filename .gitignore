@@ -19,3 +19,6 @@ nohup.out
 _yardoc
 doc/
 /result
+
+# simulation setting file
+config/simulation_data.rb
