@@ -18,6 +18,11 @@ agent_demands = []
 agent_solars = []
 agent_num = 3
 
+## デマンド及び太陽光のデータを繰り返し使い続ける
+def loop_index size, time
+  time > size - 1 ? size - 1 - time : time 
+end
+
 writers = {}
 ## add HomeAgent to Actor
 (0..agent_num-1).to_a.each do |number|
@@ -58,13 +63,14 @@ end
 number = 0
 sim_day = SIM_DAYS
 
-start_index = rand(320) ## ランダムでいつのdemand及びソーラのデータを取得するか決める
+#start_index = rand(320) ## ランダムでいつのdemand及びソーラのデータを取得するか決める
+start_index = 0
 for count in 1..sim_day do
   #output = open("./result/#{ha_id}/result_0.csv",'w')
   #output.write("buy,battery,predict,real,sell,weather\n")
   #number = 0 # 分割ナンバー
   simdatas = []
-  solars = agent_solars[0][start_index+count-1].split(',').map{|x| x.to_f}
+  solars = agent_solars[0][loop_index(agent_solars[0].size, start_index+count-1)].split(',').map{|x| x.to_f}
   sum_solar = solars.inject(0.0){|x,sum|sum += x}
   Celluloid::Actor[pca.id].switch_weather sum_solar
   print "Day #{count}, "
@@ -78,7 +84,7 @@ for count in 1..sim_day do
 
   (0..agent_num-1).each{|index|
     ha_id = "nagoya_#{PID_NUMBER}_#{index}"
-    demands = agent_demands[index][start_index+count-1].split(',').map{|x| x.to_f}
+    demands = agent_demands[index][loop_index(agent_demands[index].size, start_index+count-1)].split(',').map{|x| x.to_f}
     #solars = agent_solars[index][count-1].split(',').map{|x| x.to_f}
     ap Celluloid::Actor[ha_id]
     #sum_solar = solars.inject(0.0){|x,sum|sum += x}
@@ -124,3 +130,4 @@ end
 #w.write "\n"
 #w.write bs.join(',')
 #w.close
+
