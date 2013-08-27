@@ -86,7 +86,6 @@ for count in 1..sim_day do
     ha_id = "nagoya_#{PID_NUMBER}_#{index}"
     demands = agent_demands[index][loop_index(agent_demands[index].size, start_index+count-1)].split(',').map{|x| x.to_f}
     #solars = agent_solars[index][count-1].split(',').map{|x| x.to_f}
-    ap Celluloid::Actor[ha_id]
     #sum_solar = solars.inject(0.0){|x,sum|sum += x}
     Celluloid::Actor[ha_id].switch_weather_for_pf sum_solar 
     Celluloid::Actor[ha_id].set_demands demands
