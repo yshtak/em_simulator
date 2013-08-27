@@ -41,42 +41,45 @@ AREA=ARGV[1] # Area
 end
 ##
 count = 0 # カウントの初期化
-CSV.open("./result/sum.csv",'w') do |writer|
- header = ["BuySum","SellSum","BatteryAverage"]
- col_size = header.size
- writer << header
- (0..sim_day/5-1).each{|num|
-  file = open("./result/result_#{num}.csv",'r')
-  tmp_result = []
-  file.each do |line|
-   datas = line.split(',').map{|x|x.to_f}
-   if count != 0
-    tmp_result << Vector.elements([datas[0],datas[4],datas[1]])
-   end
-   count += 1
-   if tmp_result.size == 96
-    onedata = tmp_result.inject(Vector.elements Array.new(col_size,0)){|sum,x| sum+= x}.to_a
-    onedata[2] /= 96.0 
-    writer << (onedata)
+(0..AGENT_NUM-1).each do |agentid|
+  CSV.open("./result/sum.csv",'w') do |writer|
+   header = ["BuySum","SellSum","BatteryAverage"]
+   col_size = header.size
+   writer << header
+   (0..sim_day/5-1).each{|num|
+    file = open("./result/#{AREA}_#{NUMBER}_#{agentid}/result_#{num}.csv",'r')
     tmp_result = []
-   end
+    file.each do |line|
+     datas = line.split(',').map{|x|x.to_f}
+     if count != 0
+      tmp_result << Vector.elements([datas[0],datas[4],datas[1]])
+     end
+     count += 1
+     if tmp_result.size == 96
+      onedata = tmp_result.inject(Vector.elements Array.new(col_size,0)){|sum,x| sum+= x}.to_a
+      onedata[2] /= 96.0 
+      writer << (onedata)
+      tmp_result = []
+     end
+    end
+   }
   end
- }
 end
 
-
 # mapeの計算
-predicts = []
-reals = []
-(0..sim_day/5-1).each{|num|
- file = open("./result/result_#{num}.csv","r")
- file.each do |line|
-  data = line.split(",")
-  predicts << data[2].to_f # Predict Value
-  reals << data[3].to_f # Real value
- end
-}
-ave = reals.inject(0.0){|acc, data| acc += data}/reals.size
-mape = (0..reals.size-1).inject(0.0){|acc, index| (reals[index] + 1.0 - predicts[index]).abs / (reals[index] + 1.0)} / reals.size
-p mape * 100
+(0..AGENT_NUM-1).each do |agentid|
+  predicts = []
+  reals = []
+  (0..sim_day/5-1).each{|num|
+   file = open("./result/#{AREA}_#{NUMBER}_#{agentid}/result_#{num}.csv","r")
+   file.each do |line|
+    data = line.split(",")
+    predicts << data[2].to_f # Predict Value
+    reals << data[3].to_f # Real value
+   end
+  }
+  ave = reals.inject(0.0){|acc, data| acc += data}/reals.size
+  mape = (0..reals.size-1).inject(0.0){|acc, index| (reals[index] + 1.0 - predicts[index]).abs / (reals[index] + 1.0)} / reals.size
+  p mape * 100
+end
 #output.close
