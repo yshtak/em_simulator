@@ -42,7 +42,7 @@ end
 ##
 count = 0 # カウントの初期化
 (0..AGENT_NUM-1).each do |agentid|
-  CSV.open("./result/sum.csv",'w') do |writer|
+  CSV.open("./result/#{AREA}_#{NUMBER}_#{agentid}/sum.csv",'w') do |writer|
    header = ["BuySum","SellSum","BatteryAverage"]
    col_size = header.size
    writer << header
