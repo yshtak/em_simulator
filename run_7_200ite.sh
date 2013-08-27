@@ -8,6 +8,6 @@ sleep 1
 bundle exec ruby merge.rb
 zip -r result/result_$TODAY_$COUNT.zip result/*csv result/${AREA}_${COUNT}_*
 rm result/*csv
-rm -rf ${AREA}_${COUNT}_*
+rm -rf result/${AREA}_${COUNT}_*
 echo "End"
 #echo result_$TODAY.zip

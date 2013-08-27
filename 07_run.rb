@@ -29,7 +29,7 @@ writers = {}
  ha_id = "nagoya_#{PID_NUMBER}_#{number}"
  Dir.mkdir("./result/#{ha_id}") if !File.exist?("./result/#{ha_id}") # 出力保存場所作成
  writers.store(ha_id, open("./result/#{ha_id}/result_0.csv",'w'))
- writers[ha_id].write("buy,battery,predict,real,sell,weather\n")
+ writers[ha_id].write("buy,battery,predict,real,sell,weather,demand\n")
  ha = HomeAgent.new({
    filter: 'pf',
    address:'nagoya', 
@@ -98,7 +98,7 @@ for count in 1..sim_day do
      ha_id = "nagoya_#{PID_NUMBER}_#{agentid}"
      simdatas = Celluloid::Actor[ha_id].onestep_action time
      (0..simdatas[:buy].size-1).each{|i|
-      writers[ha_id].write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]}\n"
+      writers[ha_id].write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]},#{simdatas[:demand][i]}\n"
       #output.write "#{buys[i]},#{bats[i]}\n"
      }
    end
@@ -110,7 +110,7 @@ for count in 1..sim_day do
    if count % 5 == 0
       writers[id].close
       writers[id] = open("./result/#{id}/result_#{number}.csv",'w')
-      writers[id].write("buy,battery,predict,real,sell,weather\n")
+      writers[id].write("buy,battery,predict,real,sell,weather,demand\n")
    end
    Celluloid::Actor[id].init_date # 初期化
  }
