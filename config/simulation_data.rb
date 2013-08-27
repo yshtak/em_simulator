@@ -5,6 +5,7 @@ module SimulationData
  TEMP=100 # 学習データ一時退避配列のID
  TIMESTEP=15 # タイムステップ
  SIM_DAYS=5 # シミュレーション日数
+ AGENT_NUM=3
  SUNNY_BORDER=12000.0 # 晴れのボーダー
  CLOUDY_BORDER=5500.0 # 曇のボーダー
  MIDNIGHT_INTERVAL=12

@@ -12,6 +12,7 @@ require "#{DIRROOT}/agents/01_power_company"
 #: 初期設定
 include SimulationData
 PID_NUMBER= ARGV[0].nil? ? 0 : ARGV[0]
+AREA= ARGV[1].nil? ? "nagoya" : ARGV[1]
 pca = PowerCompany.new
 Celluloid::Actor[pca.id] = pca
 agent_demands = []
@@ -26,23 +27,23 @@ end
 writers = {}
 ## add HomeAgent to Actor
 (0..agent_num-1).to_a.each do |number|
- ha_id = "nagoya_#{PID_NUMBER}_#{number}"
+ ha_id = "#{AREA}_#{PID_NUMBER}_#{number}"
  Dir.mkdir("./result/#{ha_id}") if !File.exist?("./result/#{ha_id}") # 出力保存場所作成
  writers.store(ha_id, open("./result/#{ha_id}/result_0.csv",'w'))
  writers[ha_id].write("buy,battery,predict,real,sell,weather,demand\n")
  ha = HomeAgent.new({
    filter: 'pf',
-   address:'nagoya', 
+   address: AREA, 
    midnight_strategy: true,
    contractor: Celluloid::Actor[pca.id],
    id: ha_id
  })
- #ha = HomeAgent.new({filter: 'pf',address:'nagoya', midnight_strategy: true,contractor: pca})
+ #ha = HomeAgent.new({filter: 'pf',address:'#{AREA}', midnight_strategy: true,contractor: pca})
  Celluloid::Actor[ha.id] = ha
  ## データの格納
- solarfile = open("#{DIRROOT}/data/solar/nagoya/0_plus30.csv")
- #solarfile = open("#{DIRROOT}/data/solar/nagoya/#{number}_plus30.csv")
- demandfile = open("#{DIRROOT}/data/demand/nagoya/#{number}.csv")
+ solarfile = open("#{DIRROOT}/data/solar/#{AREA}/0_plus30.csv")
+ #solarfile = open("#{DIRROOT}/data/solar/#{AREA}/#{number}_plus30.csv")
+ demandfile = open("#{DIRROOT}/data/demand/#{AREA}/#{number}.csv")
  demand_list = demandfile.readlines
  solar_list = solarfile.readlines
  # エージェントごとの需要と太陽光発電を格納
@@ -50,14 +51,14 @@ writers = {}
  agent_solars << solar_list 
 end
 
-#ha = HomeAgent.new({filter: 'none',address:'nagoya', midnight_strategy: true})
-#ha = HomeAgent.new({filter: 'normal', address:'nagoya'})
+#ha = HomeAgent.new({filter: 'none',address:'#{AREA}', midnight_strategy: true})
+#ha = HomeAgent.new({filter: 'normal', address:'#{AREA}'})
 #ap ha.filter.config
 
 # 365日分のデータ
 #buy_output = open('buy_result.csv','w')
 #battery_output = open('battery_result.csv','w')
-#output = open('./result/nagoya_0/result_0.csv','w')
+#output = open('./result/#{AREA}_0/result_0.csv','w')
 #output.write("buy,battery,predict,real,sell,weather\n")
 #number = 0 # 分割ナンバー
 number = 0
@@ -83,7 +84,7 @@ for count in 1..sim_day do
   end
 
   (0..agent_num-1).each{|index|
-    ha_id = "nagoya_#{PID_NUMBER}_#{index}"
+    ha_id = "#{AREA}_#{PID_NUMBER}_#{index}"
     demands = agent_demands[index][loop_index(agent_demands[index].size, start_index+count-1)].split(',').map{|x| x.to_f}
     #solars = agent_solars[index][count-1].split(',').map{|x| x.to_f}
     #sum_solar = solars.inject(0.0){|x,sum|sum += x}
@@ -95,7 +96,7 @@ for count in 1..sim_day do
 
   (0..60*24/TIMESTEP-1).each{|time|
    (0..agent_num-1).to_a.each do |agentid|
-     ha_id = "nagoya_#{PID_NUMBER}_#{agentid}"
+     ha_id = "#{AREA}_#{PID_NUMBER}_#{agentid}"
      simdatas = Celluloid::Actor[ha_id].onestep_action time
      (0..simdatas[:buy].size-1).each{|i|
       writers[ha_id].write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]},#{simdatas[:demand][i]}\n"
@@ -106,7 +107,7 @@ for count in 1..sim_day do
   }
   number += 1 if count % 5 == 0 ### 全体の出力ファイルのナンバリング
  (0..agent_num-1).each{|index|
-   id = "nagoya_#{PID_NUMBER}_#{index}"
+   id = "#{AREA}_#{PID_NUMBER}_#{index}"
    if count % 5 == 0
       writers[id].close
       writers[id] = open("./result/#{id}/result_#{number}.csv",'w')

@@ -11,32 +11,34 @@ msd = 0.0
 eps = 0.0
 ave = 0.0
 sim_day = SIM_DAYS
+NUMBER=ARGV[0] # Agent Number
+AREA=ARGV[1] # Area
 
-CSV.open("./result/merge.csv",'w') do |writer|
- header = ["Buy","Battery","Predict","Real","Sell","Weather"]
- #header = ["Buy","Battery","Predict","Real","Sell","Weather","Demand"]
- col_size = header.size
- writer << header
- (0..sim_day/5-1).each{|num|
-  file = open("./result/result_#{num}.csv")
-  tmp_result = []
-  file.each do |line|
-   if count != 0
-    tmp_result << Vector.elements(line.split(',').map{|x|x.to_f})
-    #p tmp_result.size
-   end
-   count += 1
-   if tmp_result.size == 96
-    onedata = tmp_result.inject(Vector.elements Array.new(col_size,0)){|sum, x| sum += x} / 96.0
-
-    writer << (onedata).to_a
+(0..AGENT_NUM-1).each do |agentid|
+  CSV.open("./result/#{AREA}_#{NUMBER}_#{agentid}/merge.csv",'w') do |writer|
+   header = ["Buy","Battery","Predict","Real","Sell","Weather","Demand"]
+   col_size = header.size
+   writer << header
+   (0..sim_day/5-1).each{|num|
+    file = open("./result/#{AREA}_#{NUMBER}_#{agentid}/result_#{num}.csv")
     tmp_result = []
-   end
-   #writer << line.split(',').map{|x| x.to_f}
-  end
- }
-end
+    file.each do |line|
+     if count != 0
+      tmp_result << Vector.elements(line.split(',').map{|x|x.to_f})
+      #p tmp_result.size
+     end
+     count += 1
+     if tmp_result.size == 96
+      onedata = tmp_result.inject(Vector.elements Array.new(col_size,0)){|sum, x| sum += x} / 96.0
 
+      writer << (onedata).to_a
+      tmp_result = []
+     end
+     #writer << line.split(',').map{|x| x.to_f}
+    end
+   }
+  end
+end
 ##
 count = 0 # カウントの初期化
 CSV.open("./result/sum.csv",'w') do |writer|
