@@ -1,11 +1,27 @@
 Start
-D, [2013-08-26T10:48:46.890663 #29930] DEBUG -- : Terminating 8 actors...
-D, [2013-08-26T10:48:46.892025 #29930] DEBUG -- : Shutdown completed cleanly
-07_run.rb:84:in `block (2 levels) in <main>': undefined method `switch_weather_for_pf' for nil:NilClass (NoMethodError)
-	from 07_run.rb:79:in `each'
-	from 07_run.rb:79:in `block in <main>'
-	from 07_run.rb:62:in `each'
-	from 07_run.rb:62:in `<main>'
+D, [2013-08-27T10:37:32.590838 #10867] DEBUG -- : Terminating 8 actors...
+D, [2013-08-27T10:37:32.591809 #10867] DEBUG -- : Shutdown completed cleanly
+/home/kawaguchi/.rbenv/versions/2.0.0-p0/lib/ruby/2.0.0/thread.rb:72:in `sleep': Interrupt
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/lib/ruby/2.0.0/thread.rb:72:in `block (2 levels) in wait'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/lib/ruby/2.0.0/thread.rb:68:in `handle_interrupt'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/lib/ruby/2.0.0/thread.rb:68:in `block in wait'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/lib/ruby/2.0.0/thread.rb:66:in `handle_interrupt'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/lib/ruby/2.0.0/thread.rb:66:in `wait'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/gemsets/em_simu/gems/celluloid-0.14.1/lib/celluloid/mailbox.rb:73:in `receive'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/gemsets/em_simu/gems/celluloid-0.14.1/lib/celluloid/calls.rb:100:in `block in wait'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/gemsets/em_simu/gems/celluloid-0.14.1/lib/celluloid/calls.rb:99:in `loop'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/gemsets/em_simu/gems/celluloid-0.14.1/lib/celluloid/calls.rb:99:in `wait'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/gemsets/em_simu/gems/celluloid-0.14.1/lib/celluloid.rb:62:in `suspend'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/gemsets/em_simu/gems/celluloid-0.14.1/lib/celluloid/calls.rb:95:in `value'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/gemsets/em_simu/gems/celluloid-0.14.1/lib/celluloid/proxies/sync_proxy.rb:28:in `method_missing'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/gemsets/em_simu/gems/celluloid-0.14.1/lib/celluloid/legacy.rb:14:in `method_missing'
+	from 07_run.rb:99:in `block (3 levels) in <main>'
+	from 07_run.rb:97:in `each'
+	from 07_run.rb:97:in `block (2 levels) in <main>'
+	from 07_run.rb:96:in `each'
+	from 07_run.rb:96:in `block in <main>'
+	from 07_run.rb:68:in `each'
+	from 07_run.rb:68:in `<main>'
 {
                    :id => "nagoya_1_0",
                :filter => "pf",
@@ -21,7 +37,7 @@ D, [2013-08-26T10:48:46.892025 #29930] DEBUG -- : Shutdown completed cleanly
        :midnight_ratio => 0.8,
     :midnight_strategy => true,
     :midnight_interval => 4,
-           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3fb366ec4e98) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
+           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3fcf1bf31144) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
 }
 {
                    :id => "nagoya_1_1",
@@ -38,7 +54,7 @@ D, [2013-08-26T10:48:46.892025 #29930] DEBUG -- : Shutdown completed cleanly
        :midnight_ratio => 0.8,
     :midnight_strategy => true,
     :midnight_interval => 4,
-           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3fb366ec4e98) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
+           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3fcf1bf31144) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
 }
 {
                    :id => "nagoya_1_2",
@@ -55,16 +71,74 @@ D, [2013-08-26T10:48:46.892025 #29930] DEBUG -- : Shutdown completed cleanly
        :midnight_ratio => 0.8,
     :midnight_strategy => true,
     :midnight_interval => 4,
-           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3fb366ec4e98) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
+           :contractor => #<Celluloid::ActorProxy(PowerCompany:0x3fcf1bf31144) @id="pc1" @tpp=0.0 @yield=0.0 @tpg=0.0 @lpg=18000.0 @timestep=15 @onestep_tpp=0.0 @onestep_tpg=0.0 @onestep_lpg=187.5 @sell_price=20.0 @purchase_price=0.0095 @model_type=1 @train_data={} @action_list=[] @mails=[] @output_data=[] @trains={0=>[], 2=>[], 1=>[]} @weather=0>
 }
-Day 1, Weather -> [Rainy]
+Day 1, Weather -> [Cloudy]
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:125.0		purchase_price:20.0		sell_price:21.143
+sell_power:0.0		buy_power:36.841		purchase_price:20.0		sell_price:20.313
+sell_power:0.0		buy_power:38.778		purchase_price:20.0		sell_price:20.335
+sell_power:0.0		buy_power:44.935		purchase_price:20.0		sell_price:20.392
+sell_power:0.0		buy_power:50.648		purchase_price:20.0		sell_price:20.363
+sell_power:0.0		buy_power:52.221		purchase_price:20.0		sell_price:20.362
+sell_power:0.0		buy_power:55.044		purchase_price:20.0		sell_price:20.392
+sell_power:0.0		buy_power:58.539		purchase_price:20.0		sell_price:20.49
+sell_power:0.0		buy_power:58.286		purchase_price:20.0		sell_price:20.513
+sell_power:0.0		buy_power:57.472		purchase_price:20.0		sell_price:20.479
+sell_power:0.0		buy_power:49.84		purchase_price:20.0		sell_price:20.357
+sell_power:0.0		buy_power:44.509		purchase_price:20.0		sell_price:20.312
+sell_power:0.0		buy_power:32.089		purchase_price:20.0		sell_price:20.227
+sell_power:0.0		buy_power:32.191		purchase_price:20.0		sell_price:20.284
+sell_power:0.0		buy_power:37.685		purchase_price:20.0		sell_price:20.376
+sell_power:0.0		buy_power:41.927		purchase_price:20.0		sell_price:20.423
+sell_power:0.0		buy_power:109.835		purchase_price:20.0		sell_price:20.175
+sell_power:0.0		buy_power:105.479		purchase_price:20.0		sell_price:20.788
+sell_power:0.0		buy_power:81.936		purchase_price:20.0		sell_price:20.087
+sell_power:0.0		buy_power:96.714		purchase_price:20.0		sell_price:20.386
+sell_power:0.0		buy_power:185.546		purchase_price:20.0		sell_price:22.394
+sell_power:0.0		buy_power:159.313		purchase_price:20.0		sell_price:21.887
+sell_power:0.0		buy_power:118.562		purchase_price:20.0		sell_price:21.276
+sell_power:0.0		buy_power:214.929		purchase_price:20.0		sell_price:24.392
+sell_power:0.0		buy_power:69.238		purchase_price:20.0		sell_price:20.489
+sell_power:0.0		buy_power:18.629		purchase_price:20.0		sell_price:20.211
+sell_power:0.0		buy_power:0.0		purchase_price:20.0		sell_price:20.0
+sell_power:0.0		buy_power:0.0		purchase_price:20.0		sell_price:20.0
+sell_power:0.0		buy_power:0.0		purchase_price:20.0		sell_price:20.0
+sell_power:0.0		buy_power:0.0		purchase_price:20.0		sell_price:20.0
+sell_power:0.0		buy_power:0.0		purchase_price:20.0		sell_price:20.0
 merge.rb:20:in `initialize': No such file or directory - ./result/result_0.csv (Errno::ENOENT)
 	from merge.rb:20:in `open'
 	from merge.rb:20:in `block (2 levels) in <main>'
 	from merge.rb:19:in `each'
 	from merge.rb:19:in `block in <main>'
-	from /home/yshtak/.rbenv/versions/2.0.0-p0/lib/ruby/2.0.0/csv.rb:1266:in `open'
+	from /home/kawaguchi/.rbenv/versions/2.0.0-p0/lib/ruby/2.0.0/csv.rb:1266:in `open'
 	from merge.rb:15:in `<main>'
-	zip warning: name not matched: nagoya_1_*
-  adding: result/merge.csv (stored 0%)
+  adding: result/nagoya_1_0/ (stored 0%)
+  adding: result/nagoya_1_0/result_1.csv (deflated 56%)
+  adding: result/nagoya_1_0/result_0.csv (deflated 60%)
+  adding: result/nagoya_1_0/result_2.csv (stored 0%)
+  adding: result/nagoya_1_1/ (stored 0%)
+  adding: result/nagoya_1_1/result_1.csv (deflated 56%)
+  adding: result/nagoya_1_1/result_0.csv (deflated 60%)
+  adding: result/nagoya_1_1/result_2.csv (stored 0%)
+  adding: result/nagoya_1_2/ (stored 0%)
+  adding: result/nagoya_1_2/result_1.csv (deflated 57%)
+  adding: result/nagoya_1_2/result_0.csv (deflated 61%)
+  adding: result/nagoya_1_2/result_2.csv (stored 0%)
+rm: `result/*csv' を削除できません: そのようなファイルやディレクトリはありません
 End

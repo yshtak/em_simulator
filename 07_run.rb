@@ -34,6 +34,7 @@ writers = {}
  ha = HomeAgent.new({
    filter: 'pf',
    address: AREA, 
+   max_strage: 10000.0, # 蓄電容量(Wh)
    midnight_strategy: true,
    contractor: Celluloid::Actor[pca.id],
    id: ha_id
