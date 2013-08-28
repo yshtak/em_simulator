@@ -818,6 +818,9 @@ class HomeAgent
   return buy_value, sell_value 
  end
 
+ ###
+ # 最新版: 2013-08-29
+ #
  def buy_and_sell crnt_demand, next_demand, crnt_solar, next_solar, time
    max_transition = 500.0
    #cnrt_consumption = crnt_demand - crnt_solar # 現在時刻の消費量
@@ -869,8 +872,11 @@ class HomeAgent
        end
      end
    end 
-
    return askbuy,asksell 
+ end
+
+ def buy_and_sell_with_price
+   
  end
 
  # 現在時刻のみ見る場合の戦略
