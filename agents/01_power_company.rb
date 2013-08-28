@@ -65,13 +65,18 @@ class PowerCompany
   #
   def onestep_action time=0
    buy = 0.0
+   askbuys = [] # 希望購入量配列
    sell = 0.0
-   pp = @purchase_price
-   sp = @sell_price
+   asksells = [] # 希望販売量配列
+   pp = @purchase_price # 買取価格
+   sp = @sell_price # 販売価格
+   mt = @max_trade # 最大取引量
    onedata = {buy: 0.0, sell: 0.0, purchase_price: pp , sell_price: sp}
-
+   ## メッセージの解凍
    @mails.each do |msg|
     ds = msg.split(",")
+    reply_to = ds[0].gsub("id:","") # 先頭は必ずエージェントIDが送られてくる
+    compose = "id:#{@id}," # 送るメッセージの初期化
     ds.each{|pay|
      case pay
      when /^buy:.*?/ ## ホームエージェントが買う 
@@ -79,14 +84,18 @@ class PowerCompany
       @onestep_tpg = value # onestep用のpower generation
       sell_power value
       onedata[:buy] += value
+      compose += "sell:#{value}," # 実際の購入量を通知
      when /^sell:.*?/ ## ホームエージェントが売る
       value = pay.gsub(/^sell:/,"").to_f
       @onestep_tpp = value # onestep用のpurchase_power
       purchase_power value
       onedata[:sell] += value
+      compose += "buy:#{value}," # 実際の販売量を通知
      end
     }
+    Celluloid::Actor[reply_to].recieve_msg compose.chop # 家庭エージェントはメッセージを受け取る
    end
+
    onedata[:purchase_price] = @purchase_price # 更新
    onedata[:sell_price] = @sell_price # 更新
    print "sell_power:",(onedata[:sell]*1000).round/1000.0,"\t\tbuy_power:",(onedata[:buy]*1000).round/1000.0,"\t\tpurchase_price:",
@@ -169,6 +178,19 @@ class PowerCompany
    else
      @weather = RAINY
    end
+  end
+
+  #########################
+  # 均衡店の決定
+  def decide_equilibrium_point 
+  end
+
+  ## 
+  # 価格と販売量（家庭が買う量）を決定
+  # @askvalue: 家庭の希望購入量
+  # @askprice: 家庭の希望販売量
+  def decide_price_and_value askvalue, askprice
+    
   end
 
   private
