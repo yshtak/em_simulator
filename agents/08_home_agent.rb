@@ -26,7 +26,7 @@ class HomeAgent
    filter: 'none', # 未来予測のためのフィルターのタイプ
    max_strage: 5000.0, # 蓄電容量(Wh)
    target: 500.0, # 目標蓄電量(Wh)
-   buy_target_ratio: 0.3, # 30%
+   buy_target_ratio: 0.4, # 30%
    sell_target_ratio: 0.8, # 40%
    solars: [], # 15分毎の1日の電力発電データ
    demands: [], # 15分毎の1日の需要データ
