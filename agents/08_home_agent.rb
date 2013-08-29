@@ -93,7 +93,8 @@ class HomeAgent
   @may_get_solar = 0.0 # 次の日に得られる発電量
   @yield = 0.0 # 家庭エージェントの利益
   b = (1440/TIMESTEP)
-  weight_func = -> (x) {(6.0/(2.0*(b**2)-3.0 * (b**1) + 1)) * (x-b)**2 } # 重み関数
+  #weight_func = -> (x) {(6.0/(2.0*(b**2)-3.0 * (b**1) + 1)) * (x-b)**2 } # 重み関数
+  weight_func = -> (x) { - 2.25 / b * x + 2.25} # 重み関数
   @weights = [] # 重み関数の初期化（徐々に重みが減っていく.）
   (0..b-1).each do |index|
     @weights << weight_func.call(index) ## 重み関数
