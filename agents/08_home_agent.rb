@@ -26,8 +26,8 @@ class HomeAgent
    filter: 'none', # 未来予測のためのフィルターのタイプ
    max_strage: 5000.0, # 蓄電容量(Wh)
    target: 500.0, # 目標蓄電量(Wh)
-   buy_target_ratio: 0.4, # 30%
-   sell_target_ratio: 0.8, # 40%
+   buy_target_ratio: 0.35, # 30%
+   sell_target_ratio: 0.75, # 40%
    solars: [], # 15分毎の1日の電力発電データ
    demands: [], # 15分毎の1日の需要データ
    address: "unknown",
@@ -921,6 +921,10 @@ class HomeAgent
    asksell = 0.0 if asksell < 0.0
    asksell = askbuy if @battery - asksell + askbuy < 0.0
    asksell = 0.0 if @battery <= 0.0 # 最終手段
+   askbuy = max_transition if askbuy > max_transition
+   asksell = max_transition if asksell > max_transition
+   p askbuy
+   p asksell
    return askbuy,asksell 
  end
 
