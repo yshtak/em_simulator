@@ -253,12 +253,13 @@ class HomeAgent
      simdata[:buy] = power_value
      #sells << sell_value
      #### 朝のうちに買っておいた蓄電量をあまり売らない（買ってから蓄電池目標量を下回った時だけ）
-     if @buy_times[0] != 0.0 # 買う戦略をした時のみ発動
-      if @battery > @target && cnt < 10*(60/TIMESTEP) && @midnight_strategy
-       #@battery += @sells # 売ろうとした電力を回復
-       sells_value = 0.0 # やっぱり売らない
-      end
-     end
+     #if @buy_times[0] != 0.0 # 買う戦略をした時のみ発動
+     # if @battery > @target && cnt < 10*(60/TIMESTEP) && @midnight_strategy
+     #  #@battery += @sells # 売ろうとした電力を回復
+     #  sells_value = 0.0 # やっぱり売らない
+     # end
+     #end
+
      simdata[:sell] = sell_value
      simdata[:predict] = next_solar
      simdata[:real] = crnt_solar
@@ -284,7 +285,7 @@ class HomeAgent
       @buy_times[cnt] = @max_strage - @battery + @buy_times[cnt] if @battery > @max_strage
       #@battery = @max_strage if @battery > @max_strage
       simdata[:buy] = @buy_times[cnt] # 予め買う予定の電力量の購入
-      sell_value = 0.0
+      sell_value = @battery - @sell_times[cnt] * 20.0 < 0.0 ? 0.0 : @sell_times[cnt] * 20.0
       simdata[:sell] = 0.0
       ### 描画部分
       #timeline = @buy_times[cnt] != 0 ? timeline + " o" : timeline + " _"
@@ -917,6 +918,7 @@ class HomeAgent
    askbuy = 0.0 if askbuy < 0.0
    askbuy = @max_strage - @battery if @battery + askbuy > @max_strage
    asksell *= @sell_times[time]
+   asksell = 0.0 if asksell < 0.0
    asksell = askbuy if @battery - asksell + askbuy < 0.0
    asksell = 0.0 if @battery <= 0.0 # 最終手段
    return askbuy,asksell 
