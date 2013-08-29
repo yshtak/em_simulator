@@ -918,6 +918,7 @@ class HomeAgent
    askbuy = @max_strage - @battery if @battery + askbuy > @max_strage
    asksell *= @sell_times[time]
    asksell = askbuy if @battery - asksell + askbuy < 0.0
+   asksell = 0.0 if @battery <= 0.0 # 最終手段
    return askbuy,asksell 
  end
 
