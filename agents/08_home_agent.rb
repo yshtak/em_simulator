@@ -243,7 +243,7 @@ class HomeAgent
      next_demand = @demands[cnt+1]
      simdata[:demand] = crnt_demand
      #power_value = buy_power(crnt_demand,next_demand,crnt_solar,next_solar) # 予測考慮する（通常版）
-     power_value, sell_value = buy_and_sell(crnt_demand,next_demand,crnt_solar,next_solar,cnt,1) # 予測考慮する
+     power_value, sell_value = buy_and_sell(crnt_demand,next_demand,crnt_solar,next_solar,cnt,0) # 予測考慮する
      #power_value, sell_value = buy_and_sell_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
      #power_value, sell_value = buy_and_sell_power(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
      #power_value = buy_power_2step(crnt_demand,next_demand,crnt_solar,next_solar,cnt) # 予測考慮する
@@ -864,7 +864,7 @@ class HomeAgent
    end
    ####
    askbuy = @buy_times[time]
-   asksell = @sell_times[time]
+   asksell = 0.0
    case type
    when 0 ## normal
      ### 購入目標に達成しているかどうか ##################### normal #########################
@@ -913,7 +913,10 @@ class HomeAgent
      #########################################################################################
      # 時間別の最良と思われる購入時間及び販売時間から決定()
    end
-   askbuy*=beta
+   askbuy *= beta
+   askbuy = 0.0 if askbuy < 0.0
+   asksell *= @sell_times[time]
+   asksell = askbuy if @battery - asksell + askbuy < 0.0
    return askbuy,asksell 
  end
 
