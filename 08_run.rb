@@ -4,7 +4,7 @@ require 'yaml'
 require 'celluloid/autostart'
 require 'parallel'
 require 'thread'
-require "#{DIRROOT}/agents/07_home_agent"
+require "#{DIRROOT}/agents/08_home_agent"
 require "#{DIRROOT}/filter/06_particle_filter"
 require "awesome_print"
 require "#{DIRROOT}/config/simulation_data.rb"
@@ -29,12 +29,11 @@ writers = {}
 (0..agent_num-1).to_a.each do |number|
  ha_id = "#{AREA}_#{PID_NUMBER}_#{number}"
  Dir.mkdir("./result/#{ha_id}") if !File.exist?("./result/#{ha_id}") # 出力保存場所作成
- writers.store(ha_id, open("./result/#{ha_id}/result_0.csv",'w'))
- writers[ha_id].write("buy,battery,predict,real,sell,weather,demand\n")
+ #writers.store(ha_id, open("./result/#{ha_id}/result_0.csv",'w'))
+ #writers[ha_id].write("buy,battery,predict,real,sell,weather,demand\n")
  ha = HomeAgent.new({
    filter: 'pf',
    address: AREA, 
-   max_strage: 10000.0, # 蓄電容量(Wh)
    midnight_strategy: true,
    contractor: Celluloid::Actor[pca.id],
    id: ha_id
@@ -98,24 +97,28 @@ for count in 1..sim_day do
   (0..60*24/TIMESTEP-1).each{|time|
    (0..agent_num-1).to_a.each do |agentid|
      ha_id = "#{AREA}_#{PID_NUMBER}_#{agentid}"
-     simdatas = Celluloid::Actor[ha_id].onestep_action time
-     (0..simdatas[:buy].size-1).each{|i|
-      writers[ha_id].write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]},#{simdatas[:demand][i]}\n"
+     Celluloid::Actor[ha_id].onestep_action time
+     #(0..simdatas[:buy].size-1).each{|i|
+      #writers[ha_id].write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]},#{simdatas[:demand][i]}\n"
       #output.write "#{buys[i]},#{bats[i]}\n"
-     }
+     #}
    end
    Celluloid::Actor[pca.id].onestep_action time
   }
-  number += 1 if count % 10 == 0 ### 全体の出力ファイルのナンバリング
- (0..agent_num-1).each{|index|
+  #number += 1 if count % 10 == 0 ### 全体の出力ファイルのナンバリング
+  #(0..agent_num-1).each{|index|
+  # id = "#{AREA}_#{PID_NUMBER}_#{index}"
+  # if count % 10 == 0
+  #    writers[id].close
+  #    writers[id] = open("./result/#{id}/result_#{number}.csv",'w')
+  #    writers[id].write("buy,battery,predict,real,sell,weather,demand\n")
+  # end
+  # Celluloid::Actor[id].init_date
+  #}
+ (0..agent_num-1).each{|index| 
    id = "#{AREA}_#{PID_NUMBER}_#{index}"
-   if count % 10 == 0
-      writers[id].close
-      writers[id] = open("./result/#{id}/result_#{number}.csv",'w')
-      writers[id].write("buy,battery,predict,real,sell,weather,demand\n")
-   end
-   Celluloid::Actor[id].init_date # 初期化
- }
+   Celluloid::Actor[id].init_date
+ }# 初期化
  Celluloid::Actor[pca.id].csv_out("./result/pca_#{count}.csv") if count % 10 == 0
  Celluloid::Actor[pca.id].init_date # 初期化
 end

@@ -19,8 +19,8 @@ AREA=ARGV[1] # Area
    header = ["Buy","Battery","Predict","Real","Sell","Weather","Demand"]
    col_size = header.size
    writer << header
-   (0..sim_day/5-1).each{|num|
-    file = open("./result/#{AREA}_#{NUMBER}_#{agentid}/result_#{num}.csv")
+   (0..sim_day/10-1).each{|num|
+    file = open("./result/#{AREA}_#{NUMBER}_#{agentid}/result_#{(num+1)*10}.csv")
     tmp_result = []
     file.each do |line|
      if count != 0
@@ -46,8 +46,8 @@ count = 0 # カウントの初期化
    header = ["BuySum","SellSum","BatteryAverage"]
    col_size = header.size
    writer << header
-   (0..sim_day/5-1).each{|num|
-    file = open("./result/#{AREA}_#{NUMBER}_#{agentid}/result_#{num}.csv",'r')
+   (0..sim_day/10-1).each{|num|
+    file = open("./result/#{AREA}_#{NUMBER}_#{agentid}/result_#{(num+1)*10}.csv",'r')
     tmp_result = []
     file.each do |line|
      datas = line.split(',').map{|x|x.to_f}
@@ -70,8 +70,8 @@ end
 (0..AGENT_NUM-1).each do |agentid|
   predicts = []
   reals = []
-  (0..sim_day/5-1).each{|num|
-   file = open("./result/#{AREA}_#{NUMBER}_#{agentid}/result_#{num}.csv","r")
+  (0..sim_day/10-1).each{|num|
+   file = open("./result/#{AREA}_#{NUMBER}_#{agentid}/result_#{(num+1)*10}.csv","r")
    file.each do |line|
     data = line.split(",")
     predicts << data[2].to_f # Predict Value
