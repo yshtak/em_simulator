@@ -915,6 +915,7 @@ class HomeAgent
    end
    askbuy *= beta
    askbuy = 0.0 if askbuy < 0.0
+   askbuy = @max_strage - @battery if @battery + askbuy > @max_strage
    asksell *= @sell_times[time]
    asksell = askbuy if @battery - asksell + askbuy < 0.0
    return askbuy,asksell 
