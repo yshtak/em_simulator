@@ -82,7 +82,11 @@ class HomeAgent
     SUNNY => [],
     RAINY => [],
     CLOUDY => []
-   }
+   },
+   ## format
+   # {weather: 天候, step: 時刻 , solar: 発電量 , demand: 需要 , buy_price: 買値 ,sell_price: 売値 , battery: バッテリー残量%(切り捨て) }
+   # {buy: , sell: , }
+   q_trains: [] ## Q学習用データ(逐次的に蓄積されていく)
   }
   @buy_times = Array.new((1440/TIMESTEP),0.0) # 一日の間に時間別で購入する量の配列
   @sell_times = Array.new((1440/TIMESTEP),0.0) # 一日の間に時間別に販売する量の配列
@@ -116,12 +120,6 @@ class HomeAgent
    self.action time
    #self.decide_sell_power #
    #self.decide_buy_power #
- end
-
- # 一日に消費する消費量の推定
- #
- def estimate_power_consumption_per_day
-
  end
 
  # 購入する電力量の決定 
@@ -336,7 +334,31 @@ class HomeAgent
  end 
 
  ###########################################################
+ #
+ #
+ # v0.8
+ ###########################################################
+  
+ # 報酬関数
+ # dataformat: 
+ #  {weather: 天候, step: 時刻 , buy: 購入量 , sell: 販売量 , buy_price: 買値 ,sell_price: 売値 , battery: バッテリー残量%(切り捨て) }
+ def reward step
+   datas = []
+   (step+1..(1440/TIMESTEP)-1).each{|time| datas.concat(self.search_q_trains(time))}
+   reward = 0.0
+   # 報酬計算
+   datas.each{|data|
+     reward += data[:sell] * data[:sell_price] - data[:buy] * data[:buy_price] ## 収益
+     #data[:solar]
+     #data[:demand]
+     #data[:sell_price]
+     #data[:buy_price]
+     #data[:battery]
+   }
+ end
 
+ ###########################################################
+ 
  # 一日の行動をする
  def date_action
   timeline = ""
@@ -556,9 +578,9 @@ class HomeAgent
  end
 
  ###
- # 電力購入の戦略
- def buy_tender
-   
+ # 行動価値関数
+ def tender_buy_and_sell
+    
  end
 
  ###
@@ -827,8 +849,21 @@ class HomeAgent
    #askbuy = crnt_demand - cnrt_solar 
    next_battery = @battery - crnt_demand + crnt_solar # 次の蓄電池の容量
    #next_battery = 0.0 if next_battery < 0.0
-   askbuy = 0.0
-   asksell = 0.0
+   ## 単純なピーク時間を判断する（14時まえはなるべく少なめに電力を購入する（天候によって偏りあり））
+   beta = 1.0 # 天候による日中に差し掛かるまでの間の消費者行動係数 (( 最後に調整する
+   if time < 14 * (60/TIMESTEP)
+     case @weather
+     when SUNNY
+       beta = 0.2 # 比重あり
+     when CLOUDY
+       beta = 0.25 # 比重あり
+     when RAINY
+       beta = 1.0 # 比重なし
+     end
+   end
+   ####
+   askbuy = @buy_times[time]
+   asksell = @sell_times[time]
    case type
    when 0 ## normal
      ### 購入目標に達成しているかどうか ##################### normal #########################
@@ -876,9 +911,8 @@ class HomeAgent
    when 1 
      #########################################################################################
      # 時間別の最良と思われる購入時間及び販売時間から決定()
-     askbuy = @buy_times[time]
-     asksell = @sell_times[time]
    end
+   askbuy*=beta
    return askbuy,asksell 
  end
 
@@ -1318,12 +1352,12 @@ class HomeAgent
     ppp << data[:purchase_price]
   end
 
-  @trains[:p_purchase_price][@weather].concat ppp.clone
-  @trains[:p_sell_price][@weather].concat psp.clone
-  if @chunk_size * (1440/TIMESTEP) < @trains[:p_purchase_price][@weather].size
-    @trains[:p_purchase_price][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1) 
-    @trains[:p_sell_price][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1) 
-  end
+  @trains[:p_purchase_price][@weather].concat ppp.clone ## こいつのデータはどんどん肥大
+  @trains[:p_sell_price][@weather].concat psp.clone ## こいつのデータはどんどん肥大
+  #if @chunk_size * (1440/TIMESTEP) < @trains[:p_purchase_price][@weather].size
+  #  @trains[:p_purchase_price][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1) 
+  #  @trains[:p_sell_price][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1) 
+  #end
  end
 
  #####
@@ -1359,6 +1393,13 @@ class HomeAgent
  ## msgの送信
  def send_message msg
   @my_contractor.recieve_msg msg
+ end
+
+ ##
+ # ステップとtime、天候が等しい学習データを検索
+ # @time: step
+ def search_q_trains time
+   @trains[:q_trains].select{|x| x[:step] == time && x[:weather] == @weather }
  end
 
 end
