@@ -1354,10 +1354,10 @@ class HomeAgent
 
   @trains[:p_purchase_price][@weather].concat ppp.clone ## こいつのデータはどんどん肥大
   @trains[:p_sell_price][@weather].concat psp.clone ## こいつのデータはどんどん肥大
-  #if @chunk_size * (1440/TIMESTEP) < @trains[:p_purchase_price][@weather].size
-  #  @trains[:p_purchase_price][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1) 
-  #  @trains[:p_sell_price][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1) 
-  #end
+  if 10 * (1440/TIMESTEP) < @trains[:p_purchase_price][@weather].size
+    @trains[:p_purchase_price][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1) 
+    @trains[:p_sell_price][@weather].slice!(0..@chunk_size*(1440/TIMESTEP)-1) 
+  end
  end
 
  #####
