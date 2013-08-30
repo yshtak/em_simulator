@@ -24,7 +24,7 @@ class HomeAgent
   config = {
    id: "nagoya01",
    filter: 'none', # 未来予測のためのフィルターのタイプ
-   max_strage: 5000.0, # 蓄電容量(Wh)
+   max_strage: 10000.0, # 蓄電容量(Wh)
    target: 500.0, # 目標蓄電量(Wh)
    buy_target_ratio: 0.35, # 30%
    sell_target_ratio: 0.75, # 40%
