@@ -21,7 +21,7 @@ agent_num = 3
 
 ## デマンド及び太陽光のデータを繰り返し使い続ける
 def loop_index size, time
-  time > size - 1 ? size - 1 - time : time 
+  return time > size - 1 ? time % size : time 
 end
 
 writers = {}
@@ -90,9 +90,11 @@ for count in 1..sim_day do
     demands = agent_demands[index][loop_index(agent_demands[index].size, start_index+count-1)].split(',').map{|x| x.to_f}
     #solars = agent_solars[index][count-1].split(',').map{|x| x.to_f}
     #sum_solar = solars.inject(0.0){|x,sum|sum += x}
+    #
     Celluloid::Actor[ha_id].switch_weather_for_pf sum_solar 
     Celluloid::Actor[ha_id].set_demands demands
     Celluloid::Actor[ha_id].set_solars solars 
+    #
      #print "Day #{count}, Sum Solar:#{sum_solar},"
   }
 
@@ -100,12 +102,15 @@ for count in 1..sim_day do
    (0..agent_num-1).to_a.each do |agentid|
      ha_id = "#{AREA}_#{PID_NUMBER}_#{agentid}"
      Celluloid::Actor[ha_id].onestep_action time
+     
      #(0..simdatas[:buy].size-1).each{|i|
       #writers[ha_id].write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]},#{simdatas[:demand][i]}\n"
       #output.write "#{buys[i]},#{bats[i]}\n"
      #}
    end
+
    Celluloid::Actor[pca.id].onestep_action time
+   #
   }
   #number += 1 if count % 10 == 0 ### 全体の出力ファイルのナンバリング
   #(0..agent_num-1).each{|index|
