@@ -67,7 +67,7 @@ count = 0 # カウントの初期化
 end
 ##
 count = 0
-CSV.open("./result/pca_sum.csv",'w').each do |writer|
+CSV.open("./result/pca_sum.csv","w").each do |writer|
   header = ["sell","buy","purchase_price","sell_price","outcome"]
   col_size = header.size
   writer << header
