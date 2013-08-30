@@ -67,12 +67,12 @@ count = 0 # カウントの初期化
 end
 ##
 count = 0
-CSV.open("./result/pca_sum.csv","w").each do |writer|
+CSV.open("./result/pcm_sum.csv","w") do |writer|
   header = ["sell","buy","purchase_price","sell_price","outcome"]
   col_size = header.size
   writer << header
   (0..sim_day/10-1).each{|num|
-    file = open("./result/pca_#{num+1}*10.csv",'r')
+    file = open("./result/pca_#{num+1*10}.csv",'r')
     tmp = []
     file.each do |line|
       data = line.split(',').map{|x|x.to_f}
