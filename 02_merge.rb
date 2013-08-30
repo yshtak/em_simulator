@@ -75,7 +75,7 @@ CSV.open("./result/pca_sum.csv",'w').each do |writer|
     file = open("./result/pca_#{num+1}*10.csv",'r')
     tmp = []
     file.each do |line|
-      data = line.split(',').map{|x|.to_f}
+      data = line.split(',').map{|x|x.to_f}
       if count != 0
         tmp << Vector.elements([data[0],data[1],data[2],data[3],(data[0]*data[3] - data[1]*data[2]))
       end
