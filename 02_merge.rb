@@ -65,7 +65,30 @@ count = 0 # カウントの初期化
    }
   end
 end
-
+##
+count = 0
+CSV.open("./result/pca_sum.csv",'w').each do |writer|
+  header = ["sell","buy","purchase_price","sell_price","outcome"]
+  col_size = header.size
+  writer << header
+  (0..sim_day/10-1).each{|num|
+    file = open("./result/pca_#{num+1}*10.csv",'r')
+    tmp = []
+    file.each do |line|
+      data = line.split(',').map{|x|.to_f}
+      if count != 0
+        tmp << Vector.elements([data[0],data[1],data[2],data[3],(data[0]*data[3] - data[1]*data[2]))
+      end
+      count += 1
+      if tmp.size == 96
+        onedata = tmp.inject(Vector.elements Array.new(col_size,0)){|sum,x| sum+=x}.to_a
+        #onedata[2] /= 96
+        writer << onedata
+        tmp = []
+      end
+    end
+  }
+end
 # mapeの計算
 (0..AGENT_NUM-1).each do |agentid|
   predicts = []

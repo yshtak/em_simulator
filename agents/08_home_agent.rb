@@ -2,9 +2,10 @@
 require 'celluloid/autostart'
 require "#{File.expand_path File.dirname __FILE__}/../filter/06_particle_filter"
 require "#{File.expand_path File.dirname __FILE__}/../config/simulation_data"
+#require "#{File.expand_path File.dirname __FILE__}/../lib/01_differential_evolutions"
 #========================================================
 #
-# Home Agent v6.0
+# Home Agent v8.0
 # 2013-07-27
 #  - 新しいParticle Filterを導入
 # 2013-07-30
@@ -12,6 +13,8 @@ require "#{File.expand_path File.dirname __FILE__}/../config/simulation_data"
 # 2013-08-18
 #  - ActorModelの導入 mailboxでメッセージを受け取るよう
 #  に設定
+# 2013-08-30
+#  - 最適化問題の追加
 #
 #========================================================
 class HomeAgent
@@ -923,7 +926,6 @@ class HomeAgent
    asksell = 0.0 if @battery <= 0.0 # 最終手段
    askbuy = max_transition if askbuy > max_transition
    asksell = max_transition if asksell > max_transition
-   p askbuy
    p asksell
    return askbuy,asksell 
  end
