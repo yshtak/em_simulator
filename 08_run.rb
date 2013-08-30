@@ -25,6 +25,7 @@ def loop_index size, time
 end
 
 writers = {}
+bb = [0.65,1.0,2.0]
 ## add HomeAgent to Actor
 (0..agent_num-1).to_a.each do |number|
  ha_id = "#{AREA}_#{PID_NUMBER}_#{number}"
@@ -35,6 +36,7 @@ writers = {}
    filter: 'pf',
    address: AREA, 
    midnight_strategy: true,
+   max_strage: 5000.0 * bb[number], # 蓄電容量(Wh)
    contractor: Celluloid::Actor[pca.id],
    id: ha_id
  })
