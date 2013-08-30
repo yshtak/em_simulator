@@ -77,7 +77,7 @@ CSV.open("./result/pca_sum.csv",'w').each do |writer|
     file.each do |line|
       data = line.split(',').map{|x|x.to_f}
       if count != 0
-        tmp << Vector.elements([data[0],data[1],data[2],data[3],(data[0]*data[3] - data[1]*data[2]))
+        tmp << Vector.elements([data[0],data[1],data[2],data[3],(data[0]*data[3] - data[1]*data[2])])
       end
       count += 1
       if tmp.size == 96
