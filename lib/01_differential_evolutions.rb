@@ -18,12 +18,19 @@ module DifferentialEvolution
     buy_power,sell_power,buy_price,sell_price = vector[0],vector[1],vector[2],vector[3]
     battery = vector[4] # %
     solar1,demand1,solar2,demand2 = vector[5],vector[6],vector[7],vector[8]
-
-    cost = battery + solar1 - demand1
-    solar2 - demand2
-    buy_power * buy_price
-    sell_power * sell_price
-
+    #cost = battery + solar1 - demand1
+    #solar2 - demand2
+    #buy_power * buy_price
+    #sell_power * sell_price
+    p1 = buy_power > 0.0 ? 1 : 0
+    p2 = sell_power > 0.0 ? 1 : 0
+    # TODO
+    #  買うと売るの分岐
+    #  制約：
+    #   半分の時間は必ず買うなど
+    #   前の時間帯との変動率で購入、販売を決める
+    #  同じ天候だとかの条件を何回も回す（同じ１０日間をずっと回し続ける）
+    cost = p1 * buy_power * buy_price - p2 * sell_price * sell_power
     puts "#{cost}\t#{vector}\t"
     return cost
     #return vector.inject(0.0) {|sum, x| sum +  (x ** 2.0)}
@@ -89,12 +96,20 @@ module DifferentialEvolution
     return best
   end
 
+  def search_buy_and_sell max_gens, search_space, pop_size, weightf, crossf
+    result = {}
+    best = self.search( max_gens, search_space, pop_size, weightf, crossf)
+    result = {buy: best[:vector][0], sell: best[:vector][1]}
+    return result
+  end
   ## Module Function
   module_function :search, :create_vector, :objective_function,
-    :select_population, :create_children, :select_parents, :de_rand_1_bin
+    :select_population, :create_children, :select_parents, :de_rand_1_bin,
+    :search_buy_and_sell
 end
 
 ## test
+#=begin
 if __FILE__ == $0
   # problem configuration
   problem_size = 9
@@ -105,7 +120,9 @@ if __FILE__ == $0
   weightf = 0.8
   crossf = 0.9
   # execute the algorithm
-  best = DifferentialEvolution::search(max_gens, search_space, pop_size, weightf, crossf)
+  #best = DifferentialEvolution::search(max_gens, search_space, pop_size, weightf, crossf)
+  best = DifferentialEvolution::search_buy_and_sell(max_gens, search_space, pop_size, weightf, crossf)
   ap best
-  puts "done! Solution: f=#{best[:cost]}, s=#{best[:vector].inspect}"
+  #puts "done! Solution: f=#{best[:cost]}, s=#{best[:vector].inspect}"
 end
+#=end
