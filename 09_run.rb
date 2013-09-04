@@ -4,7 +4,7 @@ require 'yaml'
 require 'celluloid/autostart'
 require 'parallel'
 require 'thread'
-require "#{DIRROOT}/agents/08_home_agent"
+require "#{DIRROOT}/agents/09_home_agent"
 require "#{DIRROOT}/filter/06_particle_filter"
 require "awesome_print"
 require "#{DIRROOT}/config/simulation_data.rb"
@@ -48,8 +48,8 @@ sell_targets = [0.4,0.5,0.4]
  #ha = HomeAgent.new({filter: 'pf',address:'#{AREA}', midnight_strategy: true,contractor: pca})
  Celluloid::Actor[ha.id] = ha
  ## データの格納
- solarfile = open("#{DIRROOT}/data/solar/#{AREA}/0_plus30.csv")
- #solarfile = open("#{DIRROOT}/data/solar/#{AREA}/#{number}_plus30.csv")
+ solarfile = open("#{DIRROOT}/data/solar/#{AREA}/0_10days.csv") ## 10日間繰り返し
+ #solarfile = open("#{DIRROOT}/data/solar/#{AREA}/0_plus30.csv") ## 395日(最初の30日は捨てる)
  demandfile = open("#{DIRROOT}/data/demand/#{AREA}/#{number}.csv")
  demand_list = demandfile.readlines
  solar_list = solarfile.readlines
@@ -97,6 +97,7 @@ for count in 1..sim_day do
     #sum_solar = solars.inject(0.0){|x,sum|sum += x}
     #
     Celluloid::Actor[ha_id].switch_weather_for_pf sum_solar 
+    Celluloid::Actor[ha_id].day_start_action ## 一日刻みの行動開始
     Celluloid::Actor[ha_id].set_demands demands
     Celluloid::Actor[ha_id].set_solars solars 
     #

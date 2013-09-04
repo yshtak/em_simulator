@@ -72,7 +72,7 @@ CSV.open("./result/pcm_sum.csv","w") do |writer|
   col_size = header.size
   writer << header
   (0..sim_day/10-1).each{|num|
-    file = open("./result/pca_#{num+1*10}.csv",'r')
+    file = open("./result/pca_#{(num+1)*10}.csv",'r')
     tmp = []
     file.each do |line|
       data = line.split(',').map{|x|x.to_f}

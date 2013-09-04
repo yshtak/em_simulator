@@ -4,7 +4,7 @@ module SimulationData
  RAINY=2 # 雨ID
  TEMP=100 # 学習データ一時退避配列のID
  TIMESTEP=15 # タイムステップ
- SIM_DAYS=2000 # シミュレーション日数
+ SIM_DAYS=20 # シミュレーション日数
  AGENT_NUM=3
  SUNNY_BORDER=12000.0 # 晴れのボーダー
  CLOUDY_BORDER=5500.0 # 曇のボーダー
@@ -14,7 +14,7 @@ module SimulationData
  SECOND_STRATEGY=1002
  THIRD_STRATEGY=1003
  ### 
- MAX_TRANSMISSION=2000.0/(60/TIMSTEP) # 伝送電力量の制限(onestep毎の)
+ MAX_TRANSMISSION=2000.0/(60/TIMESTEP) # 伝送電力量の制限(onestep毎の)
  ### Differentialevolutionのパラメータ設定
  MAX_GENS=200
  POP_SIZE_BASE=10
