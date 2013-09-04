@@ -187,13 +187,13 @@ class HomeAgent
    solars = self.smooth_solar_train_data
    #buys = self.smooth_buy_train_data
    #sells = self.smooth_sell_train_data 
-   purchase_prices = self.smooth_p_purchase_price
+   #purchase_prices = self.smooth_p_purchase_price
    sell_prices = self.smooth_p_sell_price
    battery = self.smooth_battery_train_data
    # DifferentialEvolution用の初期パラメータ設定
    params = {
      step: TIMESTEP,
-     purchase_prices: purchase_prices,
+     #purchase_prices: purchase_prices,
      sell_prices: sell_prices,
      battery: battery,
      demands: demands,
@@ -211,8 +211,8 @@ class HomeAgent
    best = df.search(max_gens, search_space, pop_size, weightf, crossf)
 
    buys = best[:vector][0...(1440/TIMESTEP)]
-   sells = best[:vector][(1440/TIMESTEP)...2*(1440/TIMESTEP)]
-   return sells, buys  
+   #sells = best[:vector][(1440/TIMESTEP)...2*(1440/TIMESTEP)]
+   return buys  
  end
  
  # 買う量を決定（価格と量を返り値とする）

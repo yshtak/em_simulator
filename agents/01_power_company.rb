@@ -32,7 +32,8 @@ class PowerCompany
       lpg: 18000.0,
       timestep: 15,
       model_type: DYNAMIC_MODEL,
-      id: 'pc1'
+      id: 'pc1',
+      home_size: 1
     }.merge(cfg)
     @id = config[:id]
     @tpp = 0.0 # Total Power Purchase
@@ -55,7 +56,9 @@ class PowerCompany
       RAINY => [],
       CLOUDY => []
     }
+    @home_size = config[:home_size]
     @weather = SUNNY
+    @clock = {day: 0, step: 0}
   end
 
   ## 一日の行動(1日まとめての行動)
@@ -155,7 +158,15 @@ class PowerCompany
   ###
   # ホームエージェントから受け取るメッセージボックス
   def recieve_msg msg
-   @mails << msg
+    @mails << msg
+    if @mails.size == @home_size
+      self.onestep_action @clock[:step] # step
+      @clock[:step] += 1
+      if @clock[:step] % (1440/TIMESTEP) == 0
+        @clock[:day] += 1
+        @clock[:step] = 0
+      end
+    end
   end
 
   ###

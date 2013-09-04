@@ -22,7 +22,7 @@ module DifferentialEvolution
     #  }
     def initialize parameters
       @step =  parameters[:step] # 一日のステップ数
-      @purchase_prices = parameters[:purchase_prices] # 買取価格
+      #@purchase_prices = parameters[:purchase_prices] # 買取価格
       @sell_prices = parameters[:sell_prices] # 販売価格
       @battery = parameters[:battery] # 過去何日間分の蓄電量のステップごとの平均
       @max_strage = parameters[:max_strage] # バッテリーの最大容量
@@ -51,40 +51,15 @@ module DifferentialEvolution
     #
     def objective_function(vector)
       buy_powers = vector[0...@step]
-      sell_powers = vector[@step...@step*2]
-      cost1 = 0.0
-      cost2 = 0.0
-      penalty_cost = 0.0
+      cost = 0.0
       (0...@step).each{|index|
-        buy = buy_powers[index]
-        sell = sell_powers[index]
-        b1 = @battery[index]
-        b2 = b1
-        next_battery = @battery[index] - @demands[index] + @solars[index] # 次のバッテリーの状態
-        ## 蓄電池容量の制約によるペナルティ計算
-        if next_battery + buy > @max_strage # 買ってしまったら蓄電容量を超える
-          penalty_cost += (next_battery + buy - @max_strage)*PENALTY_PRICE # 蓄電容量を超過してしまう分追加
-        elsif next_battery - sell < 0.0 # 売ってしまったら蓄電容量を下回る
-          penalty_cost += (next_battery - sell).abs * PENALTY_PRICE # マイナス分コストペナルティ追加
-        end
-        # 2つ先状態から買う買わないの決定
-        if index < @step - 2 
-          b2 = @battery[index+2] # 通常は単純に2つ先を参照 
-        elsif index == @step - 2 # 現在の添字がブービー 
-          b2 = @battery[0] # 一周回る
-        else # 現在の添字が最後
-          b2 = @battery[1] # 一周回って1個先
-        end
-        #
-        if b1 > b2 # 2つ先の蓄電池の状態が今より減っていそう
-          cost1 -= @sell_prices[index] * buy # 販売量x販売価格
-          cost2 += @purchase_prices[index] * sell # 
-        else # 2つ先の蓄電池の状態が今よりも増えてそう
-          cost1 += @sell_prices[index] * buy
-          cost2 -= @purchase_prices[index] * sell
-        end
+        buy0 = index > 0 ? buy_powers[index-1] : buy_powers.last
+        buy1 = buy_powers[index]
+        a = (@demands[index] - @solars[index] - buy1)**2
+        b = @sell_prices[index] * (buy1 - buy0)**2
+        cost += a * b
       }
-      cost = cost1 + cost2 + penalty_cost
+      #cost = cost1 + cost2 + penalty_cost
       return cost
     end
 
@@ -165,12 +140,12 @@ if __FILE__ == $0
   #search_space = [[0,500],[0,500],[30,30],[30,30],[85,85],[0.0,0.0],[80.0,80.0],[0.0,0.0],[68.0,68.0]]
   file = open("test_result.csv","w")
   (0...10).each do |count|
-    search_space = Array.new(96*2,Array.new([0,500]))
+    search_space = Array.new(96,Array.new([0,500]))
     problem_size = search_space.size
     print "1:: \n"
     # algorithm configuration
     max_gens = 200
-    pop_size = 200 * problem_size
+    pop_size = 10 * problem_size
     weightf = 0.8 # ベクトルのステップサイズ
     crossf = 0.9 # 多いか少ないかの判定
     # execute the algorithm
@@ -195,8 +170,9 @@ if __FILE__ == $0
     #best = DifferentialEvolution::search(max_gens, search_space, pop_size, weightf, crossf)
     #ap best
     buy_powers = best[:vector][0...96]
-    sell_powers = best[:vector][96...96*2]
-    file.write "#{buy_powers.join(",")}\n#{sell_powers.join(",")}\n#{sells.join(",")}\n#{purchases.join(",")}\n\n"
+    #sell_powers = best[:vector][96...96*2]
+    file.write "#{buy_powers.join(",")}\n#{sells.join(",")}\n#{purchases.join(",")}\n\n"
+    #file.write "#{buy_powers.join(",")}\n#{sell_powers.join(",")}\n#{sells.join(",")}\n#{purchases.join(",")}\n\n"
   end
   file.close
   #puts "done! Solution: f=#{best[:cost]}, s=#{best[:vector].inspect}"

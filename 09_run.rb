@@ -107,9 +107,10 @@ for count in 1..sim_day do
   (0..60*24/TIMESTEP-1).each{|time|
    (0..agent_num-1).to_a.each do |agentid|
      ha_id = "#{AREA}_#{PID_NUMBER}_#{agentid}"
-     Celluloid::Actor[ha_id].onestep_action time
+     Celluloid::Actor[ha_id].async.onestep_action time ## 非同期処理
+     #Celluloid::Actor[ha_id].onestep_action time
    end
-   Celluloid::Actor[pca.id].onestep_action time
+   #Celluloid::Actor[pca.id].onestep_action time ## ホームエージェントが実行し終わったら自動で読み込まれるのでコメントアウト(2013-09-04)
   }
 
   (0..agent_num-1).each{|index| 
