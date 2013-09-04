@@ -47,6 +47,7 @@ class HomeAgent
   # データの初期化
   @id = config[:id]
   @simdatas = []
+  @strategy = config[:strategy]
   @my_contractor = config[:contractor] # ポインター受け渡し
   @chunk_size = config[:chunk_size] # 学習データサイズ
   @midnight_ratio = config[:midnight_ratio] #
