@@ -169,6 +169,7 @@ class HomeAgent
    end
    @oneday_battery[@clock[:step]] = @battery # @clockを使うのはプログラムの統一性を図るため
    @simdatas << simdata
+   p @simdatas
    return simdata
  end
 

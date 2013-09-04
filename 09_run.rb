@@ -101,39 +101,23 @@ for count in 1..sim_day do
     Celluloid::Actor[ha_id].set_demands demands
     Celluloid::Actor[ha_id].set_solars solars 
     #
-     #print "Day #{count}, Sum Solar:#{sum_solar},"
+    #print "Day #{count}, Sum Solar:#{sum_solar},"
   }
 
   (0..60*24/TIMESTEP-1).each{|time|
    (0..agent_num-1).to_a.each do |agentid|
      ha_id = "#{AREA}_#{PID_NUMBER}_#{agentid}"
      Celluloid::Actor[ha_id].onestep_action time
-     
-     #(0..simdatas[:buy].size-1).each{|i|
-      #writers[ha_id].write "#{simdatas[:buy][i]},#{simdatas[:battery][i]},#{simdatas[:predict][i]},#{simdatas[:real][i]},#{simdatas[:sell][i]},#{simdatas[:weather]},#{simdatas[:demand][i]}\n"
-      #output.write "#{buys[i]},#{bats[i]}\n"
-     #}
    end
-
    Celluloid::Actor[pca.id].onestep_action time
-   #
   }
-  #number += 1 if count % 10 == 0 ### 全体の出力ファイルのナンバリング
-  #(0..agent_num-1).each{|index|
-  # id = "#{AREA}_#{PID_NUMBER}_#{index}"
-  # if count % 10 == 0
-  #    writers[id].close
-  #    writers[id] = open("./result/#{id}/result_#{number}.csv",'w')
-  #    writers[id].write("buy,battery,predict,real,sell,weather,demand\n")
-  # end
-  # Celluloid::Actor[id].init_date
-  #}
- (0..agent_num-1).each{|index| 
+
+  (0..agent_num-1).each{|index| 
    id = "#{AREA}_#{PID_NUMBER}_#{index}"
    Celluloid::Actor[id].init_date
- }# 初期化
- Celluloid::Actor[pca.id].csv_out("./result/pca_#{count}.csv") if count % 10 == 0
- Celluloid::Actor[pca.id].init_date # 初期化
+  }# 初期化
+  Celluloid::Actor[pca.id].csv_out("./result/pca_#{count}.csv") if count % 10 == 0
+  Celluloid::Actor[pca.id].init_date # 初期化
 end
    #bats.each{|bat| battery_output.write("#{bat}\n") }
    #buys.each{|buy| buy_output.write("#{buy}\n")}
