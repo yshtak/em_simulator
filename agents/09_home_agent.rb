@@ -162,7 +162,6 @@ class HomeAgent
      simdata[:predict] = @solars[cnt]
      simdata[:battery] = @battery
      ##### 電力事業所にメッセージング
-     ap simdata
      send_message "id:#{@id},buy:#{simdata[:buy]},sell:#{simdata[:sell]}" 
    when SECOND_STRATEGY
 
@@ -170,7 +169,6 @@ class HomeAgent
    end
    @oneday_battery[@clock[:step]] = @battery # @clockを使うのはプログラムの統一性を図るため
    @simdatas << simdata
-   p @simdatas
    return simdata
  end
 
