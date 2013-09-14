@@ -55,9 +55,9 @@ module DifferentialEvolution
       (0...@step).each{|index|
         buy0 = index > 0 ? buy_powers[index-1] : buy_powers.last
         buy1 = buy_powers[index]
-        a = (@demands[index] - @solars[index] - buy1)**2
-        b = @sell_prices[index] * (buy1 - buy0)**2
-        cost += a * b
+        a = (@demands[index] - @solars[index] - buy1)**2 * @sell_prices[index]  
+        b =  (buy1 - buy0)**2
+        cost += a + b
       }
       #cost = cost1 + cost2 + penalty_cost
       return cost
