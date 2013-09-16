@@ -140,6 +140,11 @@ class HomeAgent
      buy_plus = 0.0 # 足りない分の電力を余分に購入する分
      sell_plus = 0.0 # 容量を超えてしまわないように売る量を微調整
      @battery = @battery - simdata[:demand] + simdata[:solar] # 購入量と販売量考慮せずの蓄電池の更新
+     # Particleによる次の予測太陽光発電量
+     next_solar = @filter.predict_next_value(simdata[:solar], cnt)
+     @filter.train_per_step simdata[:solar] # 学習
+     # 次の需要の推定量
+     next_demand = simdata[:demand] + predict_diff(cnt, :demand)
 
      ## バッテリー
      if @battery < 0.0 # batteryが0.0以下になる場合は
@@ -147,14 +152,20 @@ class HomeAgent
        @battery = 0.0
      elsif @battery > @max_strage
        @battery = @max_strage
-       sell_plus = @battery - @max_strage
+       #sell_plus = @battery - @max_strage # 超える電力量
      end
      # 購入量と販売量の変更
      simdata[:buy] = @buy_times[cnt] + buy_plus
      simdata[:sell] = @sell_times[cnt] + sell_plus
+     ## 逐次戦略開始
+     simdata[:buy] < next_demand
+     ## 逐次戦略終了 
      if @battery > 0.0
+       # 電力の販売
        simdata[:sell] = @battery - simdata[:sell] < 0.0 ? @battery : simdata[:sell] # battery 0回避
+       # 電力の購入
        simdata[:buy] = @battery + simdata[:buy] > @max_strage ? @max_strage - @battery : simdata[:buy] # 蓄電池容量制約
+       # バッテリー更新
        @battery = @battery + simdata[:buy] - simdata[:sell]
      elsif # @battery == 0.0 のとき
        @battery = @battery + simdata[:buy]
@@ -220,10 +231,12 @@ class HomeAgent
  #
  # 各時間での目標蓄電量の計算 ( b_ref )
  #  考え方
- #   
+ #   過去の蓄電状況からどのくらい蓄電したら良いのかを推定する
  #
- #####################################################################
- 
+ ##################################################################### 
+ def get_bref
+
+ end
 
  #####################################################################
  
@@ -967,6 +980,25 @@ class HomeAgent
  # @time: step
  def search_q_trains time
    @trains[:q_trains].select{|x| x[:step] == time && x[:weather] == @weather }
+ end
+
+ #  ある時刻における変化量の平均を取得
+ #  過去chunk_size日分のデータを利用
+ #  ※ tからt+1の変化量の平均を取得
+ #
+ #  time: 現在時刻
+ #  tag: 学習データのキー(demand, solar, battery, ...)
+ #  return 変化量の平均
+ def predict_diff time, tag
+   trains = @trains[tag][@weather]
+   chunk = trains.size / (1440/TIMESTEP)
+   ## 時間ステップの最後尾は次の時間は0番目とする
+   next_time = time < (1440/TIMESTEP)-1 ? time + 1 : 0
+   result = (0..chunk).inject(0.0){|acc,i|
+     plus_index = i * (1440/TIMESTEP)
+     acc += trains[next_time+index] - trains[time+index]
+   }
+   return result / @chunk_size
  end
 
 end
