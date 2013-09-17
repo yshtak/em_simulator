@@ -128,7 +128,10 @@ class HomeAgent
    #self.decide_buy_power #
  end
 
- # 購入する電力量の決定 
+ #=購入する電力量及び販売する電力量の決定
+ # ここのメソッドにエージェントの逐次敵戦略を記述 
+ # cnt: 現在のタイムステップ
+ # return: simdata
  def action cnt
    simdata = {}
    simdata[:weather] = @weather
@@ -158,7 +161,23 @@ class HomeAgent
      simdata[:buy] = @buy_times[cnt] + buy_plus
      simdata[:sell] = @sell_times[cnt] + sell_plus
      ## 逐次戦略開始
-     simdata[:buy] < next_demand
+     if next_solar + simdata[:demand] > simdata[:solar] + next_solar  # 次の時刻と今得られた発電量と需要の比較 
+       # Case 1:発電量が多い時
+       if next_solar > next_demand # Case 1-1:次の時刻は発電量が多い
+         simdata[:sell] = next_solar
+       else # Case 1-2:次の時刻は需要が多い
+       end
+     else
+       # Case 2:需要が多い時
+       if next_solar > next_demand # Case 2-1:次の時刻は発電量が多い
+       else # Case 2-2:次の時刻は需要が多い
+       end
+     end
+     elsif next_solar + @battery > max_strage # 次の発電量と蓄電量足した時に容量オーバーする場合
+       simdata[:sell] = next_solar # 次の発電量分は全部売る(空けておく
+     elsif next_solar > next_demand # 次の時刻では発電量が多い
+       simdata[:sell] = next_solar - next_demand # 余剰発電量だけ売っておく
+     end
      ## 逐次戦略終了 
      if @battery > 0.0
        # 電力の販売
