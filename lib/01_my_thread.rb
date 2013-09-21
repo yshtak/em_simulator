@@ -2,7 +2,6 @@ require 'thread'
 ###
 # 複数スレッドを管理するためにモンキーパッチを当てたスレッドクラス
 # 同時実行出来るスレッド数を制限できる
-# monkey patch
 class << Thread
   alias_method :original_new, :new
   def Thread.new(*args, &block)
