@@ -1,4 +1,5 @@
 # coding: utf-8 
+require 'bunny'
 require 'celluloid/autostart'
 require "#{File.expand_path File.dirname __FILE__}/../filter/06_particle_filter"
 require "#{File.expand_path File.dirname __FILE__}/../config/simulation_data"
@@ -67,6 +68,13 @@ class HomeAgent
   @solars = config[:solars] # 太陽光発電量のデータ（シミュレーション用）
   @demands = config[:demands] # 需要（電力消費）データ（シミュレーション用）
   @clock = {:step => 0, :day => 0} # エージェント内時計
+  ###################################
+  @bunny = Bunny.new
+  @bunny.start
+  @ch = @bunny.create_channel
+  @queue = @ch.queue("market.homes",:auto_delete => true)
+  @ex = @queue.default_exchange
+  ###################################
   # 学習データ
   @trains={
    demands:{
@@ -173,24 +181,25 @@ class HomeAgent
        else # Case 2-2:次の時刻は需要が多い
        end
      end
-     elsif next_solar + @battery > max_strage # 次の発電量と蓄電量足した時に容量オーバーする場合
-       simdata[:sell] = next_solar # 次の発電量分は全部売る(空けておく
-     elsif next_solar > next_demand # 次の時刻では発電量が多い
-       simdata[:sell] = next_solar - next_demand # 余剰発電量だけ売っておく
-     end
+     #elsif next_solar + @battery > max_strage # 次の発電量と蓄電量足した時に容量オーバーする場合
+     #  simdata[:sell] = next_solar # 次の発電量分は全部売る(空けておく
+     #elsif next_solar > next_demand # 次の時刻では発電量が多い
+     #  simdata[:sell] = next_solar - next_demand # 余剰発電量だけ売っておく
+     #end
      ## 逐次戦略終了 
-     if @battery > 0.0
-       # 電力の販売
-       simdata[:sell] = @battery - simdata[:sell] < 0.0 ? @battery : simdata[:sell] # battery 0回避
-       # 電力の購入
-       simdata[:buy] = @battery + simdata[:buy] > @max_strage ? @max_strage - @battery : simdata[:buy] # 蓄電池容量制約
-       # バッテリー更新
-       @battery = @battery + simdata[:buy] - simdata[:sell]
-     elsif # @battery == 0.0 のとき
-       @battery = @battery + simdata[:buy]
-       simdata[:sell] = 0.0 # 必ず 0.0
-     end
-     simdata[:predict] = @solars[cnt]
+     #if @battery > 0.0
+     #  # 電力の販売
+     #  simdata[:sell] = @battery - simdata[:sell] < 0.0 ? @battery : simdata[:sell] # battery 0回避
+     #  # 電力の購入
+     #  simdata[:buy] = @battery + simdata[:buy] > @max_strage ? @max_strage - @battery : simdata[:buy] # 蓄電池容量制約
+     #  # バッテリー更新
+     #  @battery = @battery + simdata[:buy] - simdata[:sell]
+     #elsif # @battery == 0.0 のとき
+     #  @battery = @battery + simdata[:buy]
+     #  simdata[:sell] = 0.0 # 必ず 0.0
+     #end
+     @battery = @battery + simdata[:buy] - simdata[:sell]
+     simdata[:predict] = next_solar 
      simdata[:battery] = @battery
      ##### 電力事業所にメッセージング
      send_message "id:#{@id},buy:#{simdata[:buy]},sell:#{simdata[:sell]}" 

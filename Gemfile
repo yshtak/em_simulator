@@ -10,4 +10,5 @@ gem 'redis'
 gem 'hiredis'
 gem 'pry'
 gem 'parallel'
+gem 'eventmachine'
 # gem "rails"

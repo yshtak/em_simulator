@@ -2,6 +2,7 @@
 DIRROOT = File.expand_path File.dirname __FILE__
 require 'yaml'
 require 'celluloid/autostart'
+require "#{DIRROOT}/lib/01_my_thread"
 require 'parallel'
 require 'thread'
 require "#{DIRROOT}/agents/09_home_agent"
@@ -15,6 +16,7 @@ PID_NUMBER= ARGV[0].nil? ? 0 : ARGV[0]
 AREA= ARGV[1].nil? ? "nagoya" : ARGV[1]
 pca = PowerCompany.new
 Celluloid::Actor[pca.id] = pca
+Thread.max_concurrent=THREAD
 agent_demands = []
 agent_solars = []
 agent_num = 3
@@ -105,11 +107,15 @@ for count in 1..sim_day do
   }
 
   (0..60*24/TIMESTEP-1).each{|time|
-   (0..agent_num-1).to_a.each do |agentid|
-     ha_id = "#{AREA}_#{PID_NUMBER}_#{agentid}"
-     Celluloid::Actor[ha_id].async.onestep_action time ## 非同期処理
-     #Celluloid::Actor[ha_id].onestep_action time
-   end
+    threads = []
+    (0..agent_num-1).to_a.each do |agentid|
+      threads << Thread.new{|t|
+        ha_id = "#{AREA}_#{PID_NUMBER}_#{agentid}"
+        Celluloid::Actor[ha_id].async.onestep_action time ## 非同期処理
+        #Celluloid::Actor[ha_id].onestep_action time
+      }
+    end
+    threads.each{|t| t.join} ## 同時実行開始
    #Celluloid::Actor[pca.id].onestep_action time ## ホームエージェントが実行し終わったら自動で読み込まれるのでコメントアウト(2013-09-04)
   }
 

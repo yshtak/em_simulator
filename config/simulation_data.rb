@@ -20,4 +20,7 @@ module SimulationData
  POP_SIZE_BASE=10
  WEIGHTF=0.8
  CROSSF=0.9
+ ## 並列処理の設定
+ THREAD=8 # スレッド数の決定
+
 end
