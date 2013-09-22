@@ -2,9 +2,8 @@
 DIRROOT = File.expand_path File.dirname __FILE__
 require 'yaml'
 require 'celluloid/autostart'
-require "#{DIRROOT}/lib/01_my_thread"
-require 'parallel'
-require 'thread'
+require "thread"
+require 'parallel' ## プロセス数制限付きによる非同期処理
 require "#{DIRROOT}/agents/09_home_agent"
 require "#{DIRROOT}/filter/06_particle_filter"
 require "awesome_print"
@@ -16,7 +15,6 @@ PID_NUMBER= ARGV[0].nil? ? 0 : ARGV[0]
 AREA= ARGV[1].nil? ? "nagoya" : ARGV[1]
 pca = PowerCompany.new
 Celluloid::Actor[pca.id] = pca
-Thread.max_concurrent=THREAD
 agent_demands = []
 agent_solars = []
 agent_num = 3
@@ -92,30 +90,55 @@ for count in 1..sim_day do
     print "Weather -> [Rainy]\n"
   end
 
-  (0..agent_num-1).each{|index|
-    ha_id = "#{AREA}_#{PID_NUMBER}_#{index}"
-    demands = agent_demands[index][loop_index(agent_demands[index].size, start_index+count-1)].split(',').map{|x| x.to_f}
-    #solars = agent_solars[index][count-1].split(',').map{|x| x.to_f}
-    #sum_solar = solars.inject(0.0){|x,sum|sum += x}
-    #
-    Celluloid::Actor[ha_id].switch_weather_for_pf sum_solar 
-    Celluloid::Actor[ha_id].day_start_action ## 一日刻みの行動開始
-    Celluloid::Actor[ha_id].set_demands demands
-    Celluloid::Actor[ha_id].set_solars solars 
-    #
-    #print "Day #{count}, Sum Solar:#{sum_solar},"
-  }
-
-  (0..60*24/TIMESTEP-1).each{|time|
-    threads = []
-    (0..agent_num-1).to_a.each do |agentid|
-      threads << Thread.new{|t|
-        ha_id = "#{AREA}_#{PID_NUMBER}_#{agentid}"
-        Celluloid::Actor[ha_id].async.onestep_action time ## 非同期処理
-        #Celluloid::Actor[ha_id].onestep_action time
+  ## 一日の始まり
+  agent_q = Queue.new
+  (0...agent_num).each{|agentid| agent_q.push(agentid)}
+  while agent_q.size > 0
+    Array.new(THREAD) do |i|
+    #(0..agent_num-1).each{|index|
+      Thread.start{
+        begin
+          raise "queue end." if agent_q.size == 0
+          index = agent_q.pop(true)
+          ha_id = "#{AREA}_#{PID_NUMBER}_#{index}"
+          demands = agent_demands[index][loop_index(agent_demands[index].size, start_index+count-1)].split(',').map{|x| x.to_f}
+          #solars = agent_solars[index][count-1].split(',').map{|x| x.to_f}
+          #sum_solar = solars.inject(0.0){|x,sum|sum += x}
+          Celluloid::Actor[ha_id].switch_weather_for_pf sum_solar 
+          Celluloid::Actor[ha_id].day_start_action ## 一日刻みの行動開始
+          Celluloid::Actor[ha_id].set_demands demands
+          Celluloid::Actor[ha_id].set_solars solars 
+          #
+          #print "Day #{count}, Sum Solar:#{sum_solar},"
+        rescue => evar
+          ## ジョブ終了
+        end
       }
+    end.each(&:join)
+  end
+
+  ## 逐次ステップ処理
+  (0..60*24/TIMESTEP-1).each{|time|
+    jobq = Queue.new
+    (0...agent_num).each{|agentid| jobq.push(agentid)}
+    #(0..agent_num-1).each{|num| q.push "#{AREA}_#{PID_NUMBER}_#{num}"}
+    while jobq.size > 0
+      Array.new(THREAD) do |i|
+        #(0..agent_num-1).to_a.each do |agentid|
+        begin
+          Thread.new{
+            raise "queue end." if jobq.size == 0
+            agentid = jobq.pop(true)
+            ha_id = "#{AREA}_#{PID_NUMBER}_#{agentid}"
+            #Celluloid::Actor[ha_id].async.onestep_action time ## 非同期処理
+            Celluloid::Actor[ha_id].onestep_action time
+          }
+        rescue => evar
+          # ジョブ終了
+        end
+         # }
+      end.each(&:join)
     end
-    threads.each{|t| t.join} ## 同時実行開始
    #Celluloid::Actor[pca.id].onestep_action time ## ホームエージェントが実行し終わったら自動で読み込まれるのでコメントアウト(2013-09-04)
   }
 

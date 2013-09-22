@@ -3,7 +3,7 @@ require 'bunny'
 require 'celluloid/autostart'
 require "#{File.expand_path File.dirname __FILE__}/../filter/06_particle_filter"
 require "#{File.expand_path File.dirname __FILE__}/../config/simulation_data"
-require "#{File.expand_path File.dirname __FILE__}/../lib/01_differential_evolutions"
+require "#{File.expand_path File.dirname __FILE__}/../lib/02_differential_evolutions"
 #========================================================
 #
 # Home Agent v8.0
@@ -69,11 +69,11 @@ class HomeAgent
   @demands = config[:demands] # 需要（電力消費）データ（シミュレーション用）
   @clock = {:step => 0, :day => 0} # エージェント内時計
   ###################################
-  @bunny = Bunny.new
-  @bunny.start
-  @ch = @bunny.create_channel
-  @queue = @ch.queue("market.homes",:auto_delete => true)
-  @ex = @queue.default_exchange
+  #@bunny = Bunny.new
+  #@bunny.start
+  #@ch = @bunny.create_channel
+  #@queue = @ch.queue("market.homes",:auto_delete => true)
+  #@ex = @queue.default_exchange
   ###################################
   # 学習データ
   @trains={
@@ -146,6 +146,7 @@ class HomeAgent
    simdata[:battery] = @battery
    case @strategy # default is normal strategy
    when NORMAL_STRATEGY
+     bref = estimate_bref cnt
      simdata[:demand] = @demands[cnt] #
      simdata[:solar] = @solars[cnt] #
      buy_plus = 0.0 # 足りない分の電力を余分に購入する分
@@ -155,7 +156,7 @@ class HomeAgent
      next_solar = @filter.predict_next_value(simdata[:solar], cnt)
      @filter.train_per_step simdata[:solar] # 学習
      # 次の需要の推定量
-     next_demand = simdata[:demand] + predict_diff(cnt, :demand)
+     next_demand = simdata[:demand] + predict_diff(cnt, :demands)
 
      ## バッテリー
      if @battery < 0.0 # batteryが0.0以下になる場合は
@@ -172,32 +173,26 @@ class HomeAgent
      if next_solar + simdata[:demand] > simdata[:solar] + next_solar  # 次の時刻と今得られた発電量と需要の比較 
        # Case 1:発電量が多い時
        if next_solar > next_demand # Case 1-1:次の時刻は発電量が多い
-         simdata[:sell] = next_solar
+         if @battery + next_solar - next_demand > bref # 充電量が目標値より多い場合
+           simdata[:sell] = bref - @battery if bref > @battery
+           simdata[:buy] = 0.0 # 購入キャンセル
+         end
        else # Case 1-2:次の時刻は需要が多い
+         ## 基本的には買う
        end
-     else
+     else # 次の時間での発電量が消費量より上回ると予測された時
        # Case 2:需要が多い時
        if next_solar > next_demand # Case 2-1:次の時刻は発電量が多い
+         simdata[:buy] = 0.0 # 購入キャンセル
+         simdata[:sell] = bref - @battery if bref > @battery # 電力の販売
        else # Case 2-2:次の時刻は需要が多い
+         if @battery + next_solar - next_demand > bref # 充電量が目標値より多い場合
+           simdata[:buy] = 0.0 # 購入キャンセル
+           simdata[:sell] = bref - @battery if bref > @battery
+         end
        end
      end
-     #elsif next_solar + @battery > max_strage # 次の発電量と蓄電量足した時に容量オーバーする場合
-     #  simdata[:sell] = next_solar # 次の発電量分は全部売る(空けておく
-     #elsif next_solar > next_demand # 次の時刻では発電量が多い
-     #  simdata[:sell] = next_solar - next_demand # 余剰発電量だけ売っておく
-     #end
      ## 逐次戦略終了 
-     #if @battery > 0.0
-     #  # 電力の販売
-     #  simdata[:sell] = @battery - simdata[:sell] < 0.0 ? @battery : simdata[:sell] # battery 0回避
-     #  # 電力の購入
-     #  simdata[:buy] = @battery + simdata[:buy] > @max_strage ? @max_strage - @battery : simdata[:buy] # 蓄電池容量制約
-     #  # バッテリー更新
-     #  @battery = @battery + simdata[:buy] - simdata[:sell]
-     #elsif # @battery == 0.0 のとき
-     #  @battery = @battery + simdata[:buy]
-     #  simdata[:sell] = 0.0 # 必ず 0.0
-     #end
      @battery = @battery + simdata[:buy] - simdata[:sell]
      simdata[:predict] = next_solar 
      simdata[:battery] = @battery
@@ -212,11 +207,22 @@ class HomeAgent
    return simdata
  end
 
+ # 時刻tにおける充電目標値を見積る
+ #
+ def estimate_bref t
+   #batterys = smooth_train_datum :battery
+   demands = smooth_train_datum :demands
+   solars = smooth_train_datum :solars
+   bref = demands[t] - solars[t]
+   return bref > 0.0 ? bref : 0.0
+ end
+
  #### 一日始まるときに行動する内容 ####################################33
  def day_start_action
    time = Time.now
    ap "最適化開始 --"
-   @buy_times, @sell_times = optimum_oneday
+   @buy_times = optimum_oneday
+   #@buy_times, @sell_times = optimum_oneday
    ap "最適化終了 -- 経過時間 #{(Time.now - time)/60.0}mins"
  end
 
@@ -245,7 +251,8 @@ class HomeAgent
    search_space = Array.new((1440/TIMESTEP)*2,Array.new([0,500]))
    problem_size = search_space.size
    pop_size = 10 * problem_size
-   max_gens = 200
+   #max_gens = 200
+   max_gens = 10
    weightf = 0.8
    crossf = 0.9
    best = df.search(max_gens, search_space, pop_size, weightf, crossf)
@@ -745,6 +752,25 @@ class HomeAgent
   #@filter.init_data if !@filter.nil? && !@filter.eql?("normal")
  end
 
+ ## 
+ # 学習データの平均的データを取得
+ # tag: ハッシュタグ
+ def smooth_train_datum tag
+   trains = @trains[tag][@weather]
+   chunk = trains.size / (1440/TIMESTEP)
+   results = Array.new((1440/TIMESTEP),0.0)
+   return results if chunk == 0
+   (0...(1440/TIMESTEP)).each do |cnt|
+     sum = 0.0
+     for i in 0...chunk
+       index = i * (1440/TIMESTEP)
+       sum += trains[cnt+index]
+     end
+     results[cnt] = (sum / chunk.to_f)
+   end
+   return results
+ end
+
  ##
  # 需要の学習データから平均的な一日の需要データを取得
  def smooth_demand_train_data
@@ -921,7 +947,7 @@ class HomeAgent
      file = open(filepath,'w')
      file.write("buy,battery,predict,real,sell,weather,demand\n")
      @simdatas.each {|data|
-       file.write "#{data[:buy]},#{data[:battery]},#{data[:predict]},#{data[:real]},#{data[:sell]},#{data[:weather]},#{data[:demand]}\n"
+       file.write "#{data[:buy]},#{data[:battery]},#{data[:predict]},#{data[:solar]},#{data[:sell]},#{data[:weather]},#{data[:demand]}\n"
      }
      file.close
      @simdatas = []
@@ -1019,12 +1045,13 @@ class HomeAgent
  #  return 変化量の平均
  def predict_diff time, tag
    trains = @trains[tag][@weather]
+   return 0.0 if trains.empty?
    chunk = trains.size / (1440/TIMESTEP)
    ## 時間ステップの最後尾は次の時間は0番目とする
    next_time = time < (1440/TIMESTEP)-1 ? time + 1 : 0
-   result = (0..chunk).inject(0.0){|acc,i|
+   result = (0...chunk).inject(0.0){|acc,i|
      plus_index = i * (1440/TIMESTEP)
-     acc += trains[next_time+index] - trains[time+index]
+     acc += trains[next_time+plus_index] - trains[time+plus_index]
    }
    return result / @chunk_size
  end

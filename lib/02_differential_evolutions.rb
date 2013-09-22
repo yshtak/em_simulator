@@ -144,7 +144,8 @@ if __FILE__ == $0
     problem_size = search_space.size
     print "1:: \n"
     # algorithm configuration
-    max_gens = 200
+    max_gens = 10
+    #max_gens = 200
     pop_size = 10 * problem_size
     weightf = 0.8 # ベクトルのステップサイズ
     crossf = 0.9 # 多いか少ないかの判定

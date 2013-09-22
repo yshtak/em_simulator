@@ -1,4 +1,8 @@
 #!/bin/bash
+##
+# COUNT: 保存番号
+# AREA: 地域
+##
 COUNT=$1
 AREA=$2
 TODAY=`date -d '' '+%Y_%m_%d'`
