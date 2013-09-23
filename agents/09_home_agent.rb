@@ -152,29 +152,31 @@ class HomeAgent
      buy_plus = 0.0 # 足りない分の電力を余分に購入する分
      sell_plus = 0.0 # 容量を超えてしまわないように売る量を微調整
      @battery = @battery - simdata[:demand] + simdata[:solar] # 購入量と販売量考慮せずの蓄電池の更新
+     @battery = 0.0 if @battery < 0.0
+     @battery = @max_strage if @battery > @max_strage
      # Particleによる次の予測太陽光発電量
      next_solar = @filter.predict_next_value(simdata[:solar], cnt)
      @filter.train_per_step simdata[:solar] # 学習
      # 次の需要の推定量
      next_demand = simdata[:demand] + predict_diff(cnt, :demands)
 
-     ## バッテリー
-     if @battery < 0.0 # batteryが0.0以下になる場合は
-       buy_plus = @battery.abs
-       @battery = 0.0
-     elsif @battery > @max_strage
-       @battery = @max_strage
-       #sell_plus = @battery - @max_strage # 超える電力量
-     end
+
      # 購入量と販売量の変更
-     simdata[:buy] = @buy_times[cnt] + buy_plus
-     simdata[:sell] = @sell_times[cnt] + sell_plus
+     simdata[:buy] = @buy_times[cnt]
+     simdata[:sell] = @sell_times[cnt]
+     if @battery + @buy_times[cnt] > @max_strage
+       simdata[:buy] = @max_strage - @battery
+     end
+     if @battery - @sell_times[cnt] < 0.0
+       simdata[:sell] = 0.0
+     end
+
      ## 逐次戦略開始
      if next_solar + simdata[:demand] > simdata[:solar] + next_solar  # 次の時刻と今得られた発電量と需要の比較 
        # Case 1:発電量が多い時
        if next_solar > next_demand # Case 1-1:次の時刻は発電量が多い
          if @battery + next_solar - next_demand > bref # 充電量が目標値より多い場合
-           simdata[:sell] = bref - @battery if bref > @battery
+           simdata[:sell] = @battery - bref if bref < @battery # 電力の販売
            simdata[:buy] = 0.0 # 購入キャンセル
          end
        else # Case 1-2:次の時刻は需要が多い
@@ -184,16 +186,19 @@ class HomeAgent
        # Case 2:需要が多い時
        if next_solar > next_demand # Case 2-1:次の時刻は発電量が多い
          simdata[:buy] = 0.0 # 購入キャンセル
-         simdata[:sell] = bref - @battery if bref > @battery # 電力の販売
+         simdata[:sell] = @battery - bref if bref < @battery # 電力の販売
        else # Case 2-2:次の時刻は需要が多い
          if @battery + next_solar - next_demand > bref # 充電量が目標値より多い場合
            simdata[:buy] = 0.0 # 購入キャンセル
-           simdata[:sell] = bref - @battery if bref > @battery
+           simdata[:sell] = @battery - bref if bref < @battery
          end
        end
      end
      ## 逐次戦略終了 
      @battery = @battery + simdata[:buy] - simdata[:sell]
+     @battery = 0.0 if @battery < 0.0
+     @battery = @max_strage if @battery > @max_strage
+     ap @battery
      simdata[:predict] = next_solar 
      simdata[:battery] = @battery
      ##### 電力事業所にメッセージング
@@ -956,7 +961,15 @@ class HomeAgent
 
  ### バッテリー更新
  def update_battery sell, buy, demand, solar
+   @penalty = 0.0
    @battery = @battery - sell - demand + solar + buy
+   if @battery < 0.0
+     @penalty = (@battery.abs * PENALTY)
+     @battery = 0.0
+   elsif @battery > @max_strage
+     @penalty = (@max_strage - @battery).abs * PENALTY
+     @battery = @max_strage
+   end
  end
 
  private
