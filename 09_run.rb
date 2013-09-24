@@ -13,11 +13,14 @@ require "#{DIRROOT}/agents/01_power_company"
 include SimulationData
 PID_NUMBER= ARGV[0].nil? ? 0 : ARGV[0]
 AREA= ARGV[1].nil? ? "nagoya" : ARGV[1]
-pca = PowerCompany.new
+pc_name = "pca"
+# 所属する家庭エージェント
+belonging_homes = (0...AGENT_NUM).map{|number| "#{AREA}_#{PID_NUMBER}_#{number}"}
+pca = PowerCompany.new({belonging_homes: belonging_homes, home_size: AGENT_NUM, id: pc_name})
 Celluloid::Actor[pca.id] = pca
 agent_demands = []
 agent_solars = []
-agent_num = 3
+agent_num = AGENT_NUM
 
 ## デマンド及び太陽光のデータを繰り返し使い続ける
 def loop_index size, time
@@ -25,12 +28,12 @@ def loop_index size, time
 end
 
 writers = {}
-bb = [0.65,1.0,2.0]
-buy_targets = [0.3,0.4,0.4]
-sell_targets = [0.4,0.5,0.4]
+bb = (0...agent_num).map{|x| Random::rand(1.35)+0.65}
+buy_targets = (0...agent_num).map{|x| Random::rand(0.2)+0.2}
+sell_targets = (0...agent_num).map{|x| Random::rand(0.2)+0.3}
 
 ## add HomeAgent to Actor
-(0..agent_num-1).to_a.each do |number|
+(0...agent_num).to_a.each do |number|
  ha_id = "#{AREA}_#{PID_NUMBER}_#{number}"
  Dir.mkdir("./result/#{ha_id}") if !File.exist?("./result/#{ha_id}") # 出力保存場所作成
  #writers.store(ha_id, open("./result/#{ha_id}/result_0.csv",'w'))
@@ -43,7 +46,8 @@ sell_targets = [0.4,0.5,0.4]
    buy_target: buy_targets[number],
    sell_target: sell_targets[number],
    contractor: Celluloid::Actor[pca.id],
-   id: ha_id
+   id: ha_id,
+   partner: pc_name
  })
  #ha = HomeAgent.new({filter: 'pf',address:'#{AREA}', midnight_strategy: true,contractor: pca})
  Celluloid::Actor[ha.id] = ha

@@ -1,5 +1,6 @@
 # coding: utf-8 
 require 'awesome_print'
+require 'bunny'
 require 'celluloid/autostart'
 require "#{File.expand_path File.dirname __FILE__}/../config/simulation_data"
 # PowerCompany
@@ -32,8 +33,9 @@ class PowerCompany
       lpg: 18000.0,
       timestep: 15,
       model_type: DYNAMIC_MODEL,
-      id: 'pc1',
-      home_size: 1
+      id: 'pc_1',
+      home_size: 1,
+      belonging_homes: []
     }.merge(cfg)
     @id = config[:id]
     @tpp = 0.0 # Total Power Purchase
@@ -48,6 +50,7 @@ class PowerCompany
     @purchase_price = purchase_curve # 買取価格初期化
     @model_type = config[:model_type] 
     @train_data = {}
+    @belonging_homes = config[:belonging_homes] # 所属する家庭IDの配列
     @action_list = []
     @mails = []
     @output_data = []
@@ -59,6 +62,13 @@ class PowerCompany
     @home_size = config[:home_size]
     @weather = SUNNY
     @clock = {day: 0, step: 0}
+    ### Bunny Setting
+    @bunny = Bunny.new
+    @bunny.start
+    @ch = @bunny.create_channel
+    @reply_qs = Hash[@belonging_homes.map{|hid| [hid , @ch.queue("#{hid}",:auto_delete => true)]}]
+    @my_q = @ch.queue("#{@id}", :auto_delete => true)
+    ready_box
   end
 
   ## 一日の行動(1日まとめての行動)
@@ -76,6 +86,7 @@ class PowerCompany
    mt = @max_trade # 最大取引量
    onedata = {buy: 0.0, sell: 0.0, purchase_price: pp , sell_price: sp}
    ## メッセージの解凍
+   #ap @mails
    @mails.each do |msg|
     ds = msg.split(",")
     reply_to = ds[0].gsub("id:","") # 先頭は必ずエージェントIDが送られてくる
@@ -96,7 +107,8 @@ class PowerCompany
       compose += "buy:#{value}," # 実際の販売量を通知
      end
     }
-    Celluloid::Actor[reply_to].recieve_msg compose.chop # 家庭エージェントはメッセージを受け取る
+    #Celluloid::Actor[reply_to].recieve_msg compose.chop # 家庭エージェントはメッセージを受け取る
+    send_msg compose.chop, reply_to
    end
 
    onedata[:purchase_price] = @purchase_price # 更新
@@ -155,6 +167,7 @@ class PowerCompany
     #ap "販売価格：#{@sell_price}\n買取価格：#{@purchase_price}\n利益：#{@yield}\n"
   end
 
+  ######################## RabbitMQ #################################
   ###
   # ホームエージェントから受け取るメッセージボックス
   def recieve_msg msg
@@ -168,6 +181,19 @@ class PowerCompany
       end
     end
   end
+
+  def send_msg msg, reply_to
+    @reply_qs[reply_to].publish msg
+  end
+
+  def ready_box
+    @my_q.subscribe(:exclusive => true, :ack => true) do |delivery_info, properties, payload|
+     self.recieve_msg "#{payload}"
+     #puts "Received #{payload}, message properties are #{properties.inspect}"
+    end
+  end
+
+  ####################################################################
 
   ###
   # save

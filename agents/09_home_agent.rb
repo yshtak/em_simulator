@@ -37,6 +37,7 @@ class HomeAgent
    address: "unknown",
    strategy: NORMAL_STRATEGY,
    limit_power: 2000.0,
+   partner: "pc_1",
    chunk_size: 5,
    midnight_ratio: 0.8, # 夜間に購入する目標充電率
    midnight_strategy: true, # 夜間戦略ありなし
@@ -44,9 +45,10 @@ class HomeAgent
    contractor: nil # 電力事業所エージェントのポインター
   }.merge(cfg)
   ## debug
-  ap config
+  #ap config
   # データの初期化
   @id = config[:id]
+  @partner = config[:partner]
   @simdatas = []
   @strategy = config[:strategy]
   @my_contractor = config[:contractor] # ポインター受け渡し
@@ -69,11 +71,12 @@ class HomeAgent
   @demands = config[:demands] # 需要（電力消費）データ（シミュレーション用）
   @clock = {:step => 0, :day => 0} # エージェント内時計
   ###################################
-  #@bunny = Bunny.new
-  #@bunny.start
-  #@ch = @bunny.create_channel
-  #@queue = @ch.queue("market.homes",:auto_delete => true)
-  #@ex = @queue.default_exchange
+  @bunny = Bunny.new
+  @bunny.start
+  @ch = @bunny.create_channel
+  @my_q = @ch.queue("#{@id}",:auto_delete => true)
+  @reply_q = @ch.queue("#{@partner}", :auto_delete => true)
+  ready_box # Queueを受付可能状態にする
   ###################################
   # 学習データ
   @trains={
@@ -99,10 +102,10 @@ class HomeAgent
      SUNNY => [], RAINY => [], CLOUDY => []
    },
   }
-  @buy_times = (0...(1440/TIMESTEP)).map{|i| (25.0*Random.rand(10.0)+10) + Random.rand(100.0)} # 一日の間に時間別で購入する量の配列
-  @sell_times = (0...(1440/TIMESTEP)).map{|i| (25.0*Random.rand(10.0)+10) + Random.rand(85.0)} # 一日の間に時間別に販売する量の配列
-  #@buy_times = Array.new((1440/TIMESTEP),0.0) # 一日の間に時間別で購入する量の配列
-  #@sell_times = Array.new((1440/TIMESTEP),0.0) # 一日の間に時間別に販売する量の配列
+  #@buy_times = (0...(1440/TIMESTEP)).map{|i| (25.0*Random.rand(10.0)+10) + Random.rand(100.0)} # 一日の間に時間別で購入する量の配列
+  #@sell_times = (0...(1440/TIMESTEP)).map{|i| (25.0*Random.rand(10.0)+10) + Random.rand(85.0)} # 一日の間に時間別に販売する量の配列
+  @buy_times = Array.new((1440/TIMESTEP),0.0) # 一日の間に時間別で購入する量の配列
+  @sell_times = Array.new((1440/TIMESTEP),0.0) # 一日の間に時間別に販売する量の配列
   @may_get_solar = 0.0 # 次の日に得られる発電量
   @yield = 0.0 # 家庭エージェントの利益
   b = (1440/TIMESTEP)
@@ -163,6 +166,11 @@ class HomeAgent
 
      # 購入量と販売量の変更
      simdata[:buy] = @buy_times[cnt]
+     if simdata[:buy] < 0.0
+       simdata[:sell] = simdata[:buy]
+       simdata[:buy] = 0.0
+     end
+     simdata[:optimum_buy] = @buy_times[cnt] 
      simdata[:sell] = @sell_times[cnt]
      if @battery + @buy_times[cnt] > @max_strage
        simdata[:buy] = @max_strage - @battery
@@ -173,21 +181,21 @@ class HomeAgent
 
      ## 逐次戦略開始
      if next_solar + simdata[:demand] > simdata[:solar] + next_solar  # 次の時刻と今得られた発電量と需要の比較 
-       # Case 1:発電量が多い時
-       if next_solar > next_demand # Case 1-1:次の時刻は発電量が多い
+       # 発電量が多い時
+       if next_solar > next_demand # 次の時刻は発電量が多い
          if @battery + next_solar - next_demand > bref # 充電量が目標値より多い場合
            simdata[:sell] = @battery - bref if bref < @battery # 電力の販売
            simdata[:buy] = 0.0 # 購入キャンセル
          end
-       else # Case 1-2:次の時刻は需要が多い
+       else # 次の時刻は需要が多い
          ## 基本的には買う
        end
      else # 次の時間での発電量が消費量より上回ると予測された時
-       # Case 2:需要が多い時
+       # 需要が多い時
        if next_solar > next_demand # Case 2-1:次の時刻は発電量が多い
          simdata[:buy] = 0.0 # 購入キャンセル
          simdata[:sell] = @battery - bref if bref < @battery # 電力の販売
-       else # Case 2-2:次の時刻は需要が多い
+       else # 次の時刻は需要が多い
          if @battery + next_solar - next_demand > bref # 充電量が目標値より多い場合
            simdata[:buy] = 0.0 # 購入キャンセル
            simdata[:sell] = @battery - bref if bref < @battery
@@ -195,10 +203,11 @@ class HomeAgent
        end
      end
      ## 逐次戦略終了 
+     simdata[:sell] = MAX_TRANSMISSION if simdata[:sell] > MAX_TRANSMISSION
      @battery = @battery + simdata[:buy] - simdata[:sell]
      @battery = 0.0 if @battery < 0.0
      @battery = @max_strage if @battery > @max_strage
-     ap @battery
+     #ap @battery
      simdata[:predict] = next_solar 
      simdata[:battery] = @battery
      ##### 電力事業所にメッセージング
@@ -253,11 +262,12 @@ class HomeAgent
    }
    df = DifferentialEvolution::instance params 
    # configuration
-   search_space = Array.new((1440/TIMESTEP)*2,Array.new([0,500]))
+   #search_space = Array.new((1440/TIMESTEP)*2,Array.new([0,500]))
+   search_space = Array.new((1440/TIMESTEP)*2,Array.new([-250,500])) # マイナスはsell値
    problem_size = search_space.size
    pop_size = 10 * problem_size
-   #max_gens = 200
-   max_gens = 10
+   max_gens = 200
+   #max_gens = 10
    weightf = 0.8
    crossf = 0.9
    best = df.search(max_gens, search_space, pop_size, weightf, crossf)
@@ -265,17 +275,6 @@ class HomeAgent
    buys = best[:vector][0...(1440/TIMESTEP)]
    #sells = best[:vector][(1440/TIMESTEP)...2*(1440/TIMESTEP)]
    return buys  
- end
-
- #####################################################################
- #
- # 各時間での目標蓄電量の計算 ( b_ref )
- #  考え方
- #   過去の蓄電状況からどのくらい蓄電したら良いのかを推定する
- #
- ##################################################################### 
- def get_bref
-
  end
 
  #####################################################################
@@ -952,7 +951,7 @@ class HomeAgent
      file = open(filepath,'w')
      file.write("buy,battery,predict,real,sell,weather,demand\n")
      @simdatas.each {|data|
-       file.write "#{data[:buy]},#{data[:battery]},#{data[:predict]},#{data[:solar]},#{data[:sell]},#{data[:weather]},#{data[:demand]}\n"
+       file.write "#{data[:buy]},#{data[:battery]},#{data[:predict]},#{data[:solar]},#{data[:sell]},#{data[:weather]},#{data[:demand]},#{data[:optimum_buy]}\n"
      }
      file.close
      @simdatas = []
@@ -1036,6 +1035,22 @@ class HomeAgent
   end
   return nil
  end
+ #################### RabbitMQ ###########################
+ # Bunnyを用いてRabbitMQによるメッセージング通信
+ 
+ # メッセージを送る
+ def send_msg msg
+   @reply_q.publish msg
+ end
+
+ # キューの受付準備
+ def ready_box
+   @my_q.subscribe(:exclusive => true, :ack => true) do |delivery_info, properties, payload|
+     self.recieve_msg "#{payload}"
+     #puts "Received #{payload}, message properties are #{properties.inspect}"
+   end
+ end
+ #########################################################
 
  ## msgの送信
  def send_message msg

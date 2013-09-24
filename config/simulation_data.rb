@@ -5,7 +5,7 @@ module SimulationData
  TEMP=100 # 学習データ一時退避配列のID
  TIMESTEP=15 # タイムステップ
  SIM_DAYS=35 # シミュレーション日数
- AGENT_NUM=3
+ AGENT_NUM=1
  SUNNY_BORDER=12000.0 # 晴れのボーダー
  CLOUDY_BORDER=5500.0 # 曇のボーダー
  MIDNIGHT_INTERVAL=12
@@ -22,6 +22,6 @@ module SimulationData
  WEIGHTF=0.8
  CROSSF=0.9
  ## 並列処理の設定
- THREAD=3 # スレッド数の決定
+ THREAD=1 # スレッド数の決定
  PROCESSES=4 # プロセス数
 end
