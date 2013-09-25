@@ -11,8 +11,9 @@ module DifferentialEvolution
 
   ### class
   class Core
-    attr_accessor :step, :purchase_prices, :sell_prices, :search
+    attr_accessor :step, :purchase_prices, :sell_prices, :search, :call_amount_buy
     PENALTY_PRICE=30 ## 基本は最大販売価格
+    TRANSMISSION=500.0
     # Constructor
     # parameters: { 
     #   step: Timesteps, 
@@ -30,47 +31,58 @@ module DifferentialEvolution
       @solars = parameters[:solars] # 過去何日間分の発電量のステップごとの平均
     end
 
-    ## 評価関数
-    # 説明：
-    #
-    def objective_function(vector)
-      buy_powers = vector[0...@step]
-      cost = 0.0
-      (0...@step).each{|index|
-        buy0 = index > 0 ? buy_powers[index-1] : buy_powers.last
-        buy1 = buy_powers[index]
-        a = (@demands[index] - @solars[index] - buy1)**2 * @sell_prices[index]  
-        b =  (buy1 - buy0)**2
-        cost += a + b
-      }
-      #cost = cost1 + cost2 + penalty_cost
-      @demands[t]
-      return cost
+    def call_amount_buy time, charge
+      return @demands[time] - @solars[time] - charge
     end
 
     #=時間付きオブジェクトファンクション
     # vector: [0]: b+, [1]: b-, [2]: battery
-    def obj_func(vector, time)
+    def objective_function(vector)
       cost = 0.0
-      cb = vector[0] # Charge Battery
-      dcb = vector[1] # Discharge Battery
-      battery = vector[2] # Battery
-      diff = @demands[time] - @solars[time]
-      #
-      if diff >= 0
-        cost = @sell_prices[time] * (diff - dcb)
-      else
-        cost = @sell_prices[time] * (diff + cb)
+      pre_buy = 0.0 # 前の購入量を覚えておく
+      vector.each_with_index do |value,time|
+        buy = 0.0
+        diff = @demands[time] - @solars[time]
+        if diff >= 0
+          buy = diff - value if diff - value > 0.0
+          cost += @sell_prices[time] * (diff - value) + (buy + pre_buy)
+        else
+          buy = 0.0
+          cost += @sell_prices[time] * (diff + value) + (buy - pre_buy)
+        end
+        pre_buy = buy # 前の時刻の購入量を記憶する
       end
 
       return cost
     end
 
     ## 特徴ベクトルの生成
-    def create_vector(minmax)
-      return Array.new(minmax.size) do |i|
-        minmax[i][0] + ((minmax[i][1] - minmax[i][0]) * rand())
+    #def create_vector(minmax)
+    #  return Array.new(minmax.size) do |i|
+    #    minmax[i][0] + ((minmax[i][1] - minmax[i][0]) * rand())
+    #  end
+    #end
+
+    #=制約条件が時間別で変わるようにベクトルを作成する
+    # 蓄電量（及び放電量）を乱数で与える
+    # minmax: 最大最小の制約の初期値（動的に変更される）
+    # battery: 一日の始まるときの蓄電量
+    def create_vector(minmax, battery)
+      size = minmax.size
+      vectors = []
+      (0...size).each do |i|
+        minmax[i][0] = 0.0 if battery <= 0.0 # 最大値更新
+        diff = @max_strage - battery # 蓄電池の空き容量
+        if diff > @solars[i] - @demands[i] and @solars[i] > @demands[i] then
+          minmax[i][1] = @solars[i] - @demands[i] # 蓄電池に蓄電できる最大電気量
+        elsif diff < TRANSMISSION then
+          minmax[i][1] = diff # 空き容量が送電制限量より低い場合
+        end
+        value = minmax[i][0] + ((minmax[i][1] - minmax[i][0]) * rand()) # チャージ量(蓄電池から受ける供給量)
+        vectors << value
+        battery += value - @demands[i] + @solars[i] # バッテリーの更新
       end
+      vectors
     end
 
     def de_rand_1_bin(p0, p1, p2, p3, f, cr, search_space)
@@ -112,7 +124,7 @@ module DifferentialEvolution
     end
 
     def search(max_gens, search_space, pop_size, f, cr)
-      pop = Array.new(pop_size) {|i| {:vector=>create_vector(search_space)}}
+      pop = Array.new(pop_size) {|i| {:vector=>create_vector(search_space, @battery)}}
       pop.each{|c| c[:cost] = objective_function(c[:vector])}
       best = pop.sort{|x,y| x[:cost] <=> y[:cost]}.first
       max_gens.times do |gen|
@@ -158,7 +170,8 @@ if __FILE__ == $0
     solars = open("./test_solar.csv",'r').readline.split(',').map{|data| data.to_f}
     purchases = open("./test_purchase.csv",'r').readline.split(",").map{|data| data.to_f}
     sells = open("./test_sell.csv",'r').readline.split(",").map{|data| data.to_f}
-    battery = open("./test_battery.csv", 'r').readline.split(",").map{|data| data.to_f}
+    #battery = open("./test_battery.csv", 'r').readline.split(",").map{|data| data.to_f}
+    battery = 2200.0
     params = {
       purchase_prices: purchases, 
       sell_prices: sells,
@@ -170,10 +183,11 @@ if __FILE__ == $0
     }
     df = DifferentialEvolution::instance params
     best = df.search(max_gens, search_space, pop_size, weightf, crossf)
+    ap best
 
     #best = DifferentialEvolution::search(max_gens, search_space, pop_size, weightf, crossf)
     #ap best
-    buy_powers = best[:vector][0...96]
+    buy_powers = best[:vector].map.with_index{|x,time| df.call_amount_buy(time,x) }
     #sell_powers = best[:vector][96...96*2]
     file.write "#{buy_powers.join(",")}\n#{sells.join(",")}\n#{purchases.join(",")}\n\n"
     #file.write "#{buy_powers.join(",")}\n#{sell_powers.join(",")}\n#{sells.join(",")}\n#{purchases.join(",")}\n\n"
