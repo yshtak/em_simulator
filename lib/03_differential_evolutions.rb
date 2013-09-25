@@ -24,7 +24,7 @@ module DifferentialEvolution
       @step =  parameters[:step] # 一日のステップ数
       #@purchase_prices = parameters[:purchase_prices] # 買取価格
       @sell_prices = parameters[:sell_prices] # 販売価格
-      @battery = parameters[:battery] # 過去何日間分の蓄電量のステップごとの平均
+      @battery = parameters[:battery] # 時刻0でのバッテリーの蓄電量
       @max_strage = parameters[:max_strage] # バッテリーの最大容量
       @demands = parameters[:demands] # 過去何日間分の需要のステップごとの平均
       @solars = parameters[:solars] # 過去何日間分の発電量のステップごとの平均
@@ -32,22 +32,6 @@ module DifferentialEvolution
 
     ## 評価関数
     # 説明：
-    # 2つ先の状態を見て増えそうなら売る、減りそうなら買う.
-    # また，蓄電容量を超えようとしたり，蓄電量が0以下になりそうなときは
-    # ペナルティを加えて，評価を下げる．
-    #
-    # 評価関数も減る場合には買う時と売る時でコスト計算を場合分けする
-    #  1: 2つ先でバッテリーが減っている場合
-    #    a) 購入した時コストが下がる（最適に近い
-    #    b) 販売した時コストが上がる（最適に遠ざかる
-    #  2: 2つ先でバッテリーが増えている場合
-    #    a) 購入した時コスト増
-    #    b) 販売した時コスト減
-    # 
-    #  [ペナルティについて] 
-    #    ペナルティは蓄電容量を超えるまたは下回る現象が起きた時に発生する
-    #    1, 買い過ぎで蓄電容量を超えそうなとき
-    #    2, 売りすぎて蓄電量が0以下になりそう
     #
     def objective_function(vector)
       buy_powers = vector[0...@step]
@@ -60,6 +44,25 @@ module DifferentialEvolution
         cost += a + b
       }
       #cost = cost1 + cost2 + penalty_cost
+      @demands[t]
+      return cost
+    end
+
+    #=時間付きオブジェクトファンクション
+    # vector: [0]: b+, [1]: b-, [2]: battery
+    def obj_func(vector, time)
+      cost = 0.0
+      cb = vector[0] # Charge Battery
+      dcb = vector[1] # Discharge Battery
+      battery = vector[2] # Battery
+      diff = @demands[time] - @solars[time]
+      #
+      if diff >= 0
+        cost = @sell_prices[time] * (diff - dcb)
+      else
+        cost = @sell_prices[time] * (diff + cb)
+      end
+
       return cost
     end
 
