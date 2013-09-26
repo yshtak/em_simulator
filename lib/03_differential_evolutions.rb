@@ -32,7 +32,7 @@ module DifferentialEvolution
     end
 
     def call_amount_buy time, charge
-      return @demands[time] - @solars[time] - charge
+      return @demands[time] - @solars[time] + charge
     end
 
     #=時間付きオブジェクトファンクション
@@ -40,15 +40,17 @@ module DifferentialEvolution
     def objective_function(vector)
       cost = 0.0
       pre_buy = 0.0 # 前の購入量を覚えておく
-      vector.each_with_index do |value,time|
+      charges = vector[0...(1440/@step)]
+      batteries = vector[(1440/@step)...vector.size]
+      charges.each_with_index do |value,time| # value: 充電量, time: 時間
         buy = 0.0
         diff = @demands[time] - @solars[time]
         if diff >= 0
           buy = diff - value if diff - value > 0.0
-          cost += @sell_prices[time] * (diff - value) + (buy + pre_buy)
+          cost += @sell_prices[time] * (diff - value) + (buy - pre_buy)
         else
           buy = 0.0
-          cost += @sell_prices[time] * (diff + value) + (buy - pre_buy)
+          cost += (buy - pre_buy)
         end
         pre_buy = buy # 前の時刻の購入量を記憶する
       end
@@ -70,19 +72,27 @@ module DifferentialEvolution
     def create_vector(minmax, battery)
       size = minmax.size
       vectors = []
+      batteries = []
       (0...size).each do |i|
         minmax[i][0] = 0.0 if battery <= 0.0 # 最大値更新
         diff = @max_strage - battery # 蓄電池の空き容量
         if diff > @solars[i] - @demands[i] and @solars[i] > @demands[i] then
           minmax[i][1] = @solars[i] - @demands[i] # 蓄電池に蓄電できる最大電気量
-        elsif diff < TRANSMISSION then
-          minmax[i][1] = diff # 空き容量が送電制限量より低い場合
+          minmax[i][1] = TRANSMISSION if minmax[i][1] > TRANSMISSION
+        #elsif diff < TRANSMISSION then
+        #  minmax[i][1] = diff # 空き容量が送電制限量より低い場合
+        else
+          minmax[i][1] = diff
+          minmax[i][1] = TRANSMISSION if minmax[i][1] > TRANSMISSION
         end
+        # B+の計算(random)
         value = minmax[i][0] + ((minmax[i][1] - minmax[i][0]) * rand()) # チャージ量(蓄電池から受ける供給量)
         vectors << value
-        battery += value - @demands[i] + @solars[i] # バッテリーの更新
+        batteries << battery
+        battery += value # バッテリーの更新
+        #battery += value - @demands[i] + @solars[i] # バッテリーの更新
       end
-      vectors
+      {vector: vectors, battery: batteries}
     end
 
     def de_rand_1_bin(p0, p1, p2, p3, f, cr, search_space)
@@ -124,9 +134,11 @@ module DifferentialEvolution
     end
 
     def search(max_gens, search_space, pop_size, f, cr)
-      pop = Array.new(pop_size) {|i| {:vector=>create_vector(search_space, @battery)}}
+      pop = Array.new(pop_size) {|i| create_vector(search_space, @battery)}
+      #pop = Array.new(pop_size) {|i| {:vector=>create_vector(search_space, @battery)}}
       pop.each{|c| c[:cost] = objective_function(c[:vector])}
       best = pop.sort{|x,y| x[:cost] <=> y[:cost]}.first
+      batteries = best[:battery]
       max_gens.times do |gen|
         children = create_children(pop, search_space, f, cr)
         children.each{|c| c[:cost] = objective_function(c[:vector])}
@@ -135,6 +147,7 @@ module DifferentialEvolution
         best = pop.first if pop.first[:cost] < best[:cost]
         #puts " > gen #{gen+1}, fitness=#{best[:cost]}"
       end
+      best[:battery] = batteries 
       return best
     end
 

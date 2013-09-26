@@ -17,7 +17,7 @@ module SimulationData
  ### 
  MAX_TRANSMISSION=2000.0/(60/TIMESTEP) # 伝送電力量の制限(onestep毎の)
  ### Differentialevolutionのパラメータ設定
- MAX_GENS=200
+ MAX_GENS=100
  POP_SIZE_BASE=10
  WEIGHTF=0.8
  CROSSF=0.9
