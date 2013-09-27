@@ -150,6 +150,8 @@ class HomeAgent
    simdata = {}
    simdata[:weather] = @weather
    simdata[:battery] = @battery
+   ap smooth_train_datum(:demands)
+   ap @demands
    @pre_battery = @battery # 一つ前の蓄電量の記憶
    #ap @buy_batteries
    case @strategy # default is normal strategy
