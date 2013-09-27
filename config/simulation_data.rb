@@ -4,7 +4,7 @@ module SimulationData
  RAINY=2 # 雨ID
  TEMP=100 # 学習データ一時退避配列のID
  TIMESTEP=15 # タイムステップ
- SIM_DAYS=35 # シミュレーション日数
+ SIM_DAYS=100 # シミュレーション日数
  AGENT_NUM=3
  SUNNY_BORDER=12000.0 # 晴れのボーダー
  CLOUDY_BORDER=5500.0 # 曇のボーダー

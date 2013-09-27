@@ -31,6 +31,7 @@ module DifferentialEvolution
       @solars = parameters[:solars] # 過去何日間分の発電量のステップごとの平均
     end
 
+    # 蓄電池へのチャージ量から購入量に変換
     def call_amount_buy time, charge
       return @demands[time] - @solars[time] + charge
     end
@@ -74,15 +75,22 @@ module DifferentialEvolution
       vectors = []
       batteries = []
       (0...size).each do |i|
-        minmax[i][0] = 0.0 if battery <= 0.0 # 最大値更新
         diff = @max_strage - battery # 蓄電池の空き容量
+        if diff > @demands[i] - @solars[i] and @demands[i] > @solars[i] then
+          minmax[i][0] = @solars[i] - @demands[i] 
+          minmax[i][0] = -1 * TRANSMISSION if minmax[i][0] < -1 * TRANSMISSION # 最大値更新
+        else
+          minmax[i][0] = diff
+          minmax[i][0] = -1 * TRANSMISSION if minmax[i][0] < -1 * TRANSMISSION # 最大値更新
+        end
+        
         if diff > @solars[i] - @demands[i] and @solars[i] > @demands[i] then
           minmax[i][1] = @solars[i] - @demands[i] # 蓄電池に蓄電できる最大電気量
           minmax[i][1] = TRANSMISSION if minmax[i][1] > TRANSMISSION
         #elsif diff < TRANSMISSION then
         #  minmax[i][1] = diff # 空き容量が送電制限量より低い場合
         else
-          minmax[i][1] = diff
+          minmax[i][1] = diff # 残の全充電?
           minmax[i][1] = TRANSMISSION if minmax[i][1] > TRANSMISSION
         end
         # B+の計算(random)

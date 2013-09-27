@@ -58,6 +58,7 @@ class HomeAgent
   @midnight_strategy = config[:midnight_strategy] #
   @max_strage = config[:max_strage] # 最大容量
   @battery = 2000.0 # 蓄電量の初期値
+  @pre_battery = 2000.0 # 初期値
   @address = config[:address] # 地域や住所（ex, nagoya, okazaki）
   @weather = -1 # none 
   @oneday_buys = Array.new((1440/TIMESTEP), 0.0) # 一日の買った電力をタイプステップごとで記録し学習
@@ -145,9 +146,11 @@ class HomeAgent
  # cnt: 現在のタイムステップ
  # return: simdata
  def action cnt
+   pre_cnt = cnt > 0 ? cnt - 1 : (1440/TIMESTEP) - 1
    simdata = {}
    simdata[:weather] = @weather
    simdata[:battery] = @battery
+   @pre_battery = @battery # 一つ前の蓄電量の記憶
    #ap @buy_batteries
    case @strategy # default is normal strategy
    when NORMAL_STRATEGY
@@ -167,7 +170,7 @@ class HomeAgent
 
 
      # 購入量と販売量の変更
-     simdata[:buy] = @demands[cnt] - @solars[cnt] + @buy_times[cnt]
+     simdata[:buy] = @buy_times[cnt]
      if simdata[:buy] < 0.0
        simdata[:sell] = -1 * simdata[:buy]
        simdata[:buy] = 0.0
@@ -208,20 +211,29 @@ class HomeAgent
      #    end
      #  end
      #end
-     if @day_batteries[cnt] > @battery # 見積もりより蓄電量が低い時
-       if @demands[cnt] > @solars[cnt] # 需要が大きい時は買ったほうがよい
-         #simdata[:buy] = @demands[cnt] - @solars[cnt]
-         simdata[:sell] = 0.0
-       else # 発電量が多いので売りもあり
-       end
-     else # 見積もりのほうが多かった時
-       if @demands[cnt] > @solars[cnt] # 需要が大きい時は買いもあり
-       else # 発電量が大きい時は売ったほうが良い
-         simdata[:sell] = @solars[cnt] - @demands[cnt] 
-         simdata[:buy] = 0.0
-       end
+     ### 
+     est_diff = @day_batteries[cnt] - @day_batteries[pre_cnt]
+     real_diff = @battery - @pre_battery
+     if est_diff > 0 and real_diff > 0 and est_diff > real_diff # 電力多く売ってる可能性
+       #p "-sell-"
+       #ap simdata[:sell]
+       simdata[:sell] = ( real_diff / est_diff ) * simdata[:sell]
+       #ap simdata[:sell]
+     elsif est_diff > 0 and real_diff < 0
+       #ap "--case 2"
+       #ap simdata
+       simdata[:sell] = 0.0
+     elsif est_diff < 0 and real_diff < 0 and est_diff < real_diff # 電力多く買ってしまってる可能性
+       #p "-buy-"
+       #ap simdata[:buy]
+       simdata[:buy] = ( real_diff / est_diff ) * simdata[:buy]
+       #ap simdata[:buy]
+     elsif est_diff < 0 and real_diff > 0 
+       #ap "--case 4"
+       #ap simdata
+       #simdata[:buy] = 0.0
      end
-
+     
      ## 逐次戦略終了 
      simdata[:sell] = MAX_TRANSMISSION if simdata[:sell] > MAX_TRANSMISSION
      simdata[:buy] = MAX_TRANSMISSION if simdata[:buy] > MAX_TRANSMISSION
@@ -291,8 +303,8 @@ class HomeAgent
    best = df.search(MAX_GENS, search_space, pop_size, WEIGHTF, CROSSF)
    ap best
    
-   buys = best[:vector][0...(1440/TIMESTEP)]
-   #buys = best[:vector][0...(1440/TIMESTEP)].map.with_index{|m,time| df.call_amount_buy(time,m) }
+   #buys = best[:vector][0...(1440/TIMESTEP)]
+   buys = best[:vector][0...(1440/TIMESTEP)].map.with_index{|m,time| df.call_amount_buy(time,m) }
    #batteries = best[:vector][(1440/TIMESTEP)...best[:vector].size]
    batteries = best[:battery]
    #sells = best[:vector][(1440/TIMESTEP)...2*(1440/TIMESTEP)]

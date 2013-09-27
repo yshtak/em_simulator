@@ -28,7 +28,8 @@ def loop_index size, time
 end
 
 writers = {}
-bb = (0...agent_num).map{|x| Random::rand(1.35)+0.65}
+#bb = (0...agent_num).map{|x| Random::rand(1.35)+0.65}
+bb = [5000.0,4500.0,4000.0]
 buy_targets = (0...agent_num).map{|x| Random::rand(0.2)+0.2}
 sell_targets = (0...agent_num).map{|x| Random::rand(0.2)+0.3}
 
@@ -42,7 +43,8 @@ sell_targets = (0...agent_num).map{|x| Random::rand(0.2)+0.3}
    filter: 'pf',
    address: AREA, 
    midnight_strategy: true,
-   max_strage: 5000.0 * bb[number], # 蓄電容量(Wh)
+   #max_strage: 5000.0 * bb[number], # 蓄電容量(Wh)
+   max_strage: bb[number], # 蓄電容量(Wh)
    buy_target: buy_targets[number],
    sell_target: sell_targets[number],
    contractor: Celluloid::Actor[pca.id],
