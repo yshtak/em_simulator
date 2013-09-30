@@ -150,8 +150,8 @@ class HomeAgent
    simdata = {}
    simdata[:weather] = @weather
    simdata[:battery] = @battery
-   ap smooth_train_datum(:demands)
-   ap @demands
+   #ap smooth_train_datum(:demands)
+   #ap @demands
    @pre_battery = @battery # 一つ前の蓄電量の記憶
    #ap @buy_batteries
    case @strategy # default is normal strategy
@@ -214,6 +214,7 @@ class HomeAgent
      #  end
      #end
      ### 
+     simdata[:opt_battery] = @day_batteries[cnt]
      est_diff = @day_batteries[cnt] - @day_batteries[pre_cnt]
      real_diff = @battery - @pre_battery
      if est_diff > 0 and real_diff > 0 and est_diff > real_diff # 電力多く売ってる可能性
@@ -238,14 +239,16 @@ class HomeAgent
      
      ## 逐次戦略終了 
      simdata[:sell] = MAX_TRANSMISSION if simdata[:sell] > MAX_TRANSMISSION
+     simdata[:sell] = @battery if simdata[:sell] > @battery
      simdata[:buy] = MAX_TRANSMISSION if simdata[:buy] > MAX_TRANSMISSION
+     simdata[:buy] = @max_strage - @battery if @battery + simdata[:buy] > @max_strage
+       
      @battery = @battery + simdata[:buy] - simdata[:sell]
-     @battery = 0.0 if @battery < 0.0
-     @battery = @max_strage if @battery > @max_strage
      #ap @battery
      simdata[:predict] = next_solar 
      simdata[:battery] = @battery
      ##### 電力事業所にメッセージング
+     ap "[HOME]: 家庭が購入する#{simdata[:buy]}"
      send_message "id:#{@id},buy:#{simdata[:buy]},sell:#{simdata[:sell]}" 
    when SECOND_STRATEGY
 
@@ -271,7 +274,7 @@ class HomeAgent
    time = Time.now
    ap "最適化開始 --"
    @buy_times, @day_batteries = optimum_oneday
-   ap @day_batteries
+   #ap @day_batteries
    #@buy_times, @sell_times = optimum_oneday
    ap "最適化終了 -- 経過時間 #{(Time.now - time)/60.0}mins"
  end
@@ -283,27 +286,29 @@ class HomeAgent
    solars = self.smooth_solar_train_data
    #buys = self.smooth_buy_train_data
    #sells = self.smooth_sell_train_data 
-   #purchase_prices = self.smooth_p_purchase_price
+   purchase_prices = self.smooth_p_purchase_price
+   #buy_prices = self.smooth_trains_datum :p_buy_price
    sell_prices = self.smooth_p_sell_price
    #battery = self.smooth_battery_train_data
    # DifferentialEvolution用の初期パラメータ設定
    params = {
      step: TIMESTEP,
-     #purchase_prices: purchase_prices,
+     purchase_prices: purchase_prices,
      sell_prices: sell_prices,
      battery: @battery,
      demands: demands,
      solars: solars,
      max_strage: @max_strage
    }
+   #ap @battery
    df = DifferentialEvolution::instance params 
    # configuration
    #search_space = Array.new((1440/TIMESTEP)*2,Array.new([0,500]))
-   search_space = Array.new((1440/TIMESTEP),Array.new([-500,500])) # マイナスはsell値
+   search_space = Array.new((1440/TIMESTEP)*2,Array.new([-500,500*0.9])) # マイナスはsell値
    problem_size = search_space.size
    pop_size = POP_SIZE_BASE * problem_size
    best = df.search(MAX_GENS, search_space, pop_size, WEIGHTF, CROSSF)
-   ap best
+   #ap best
    
    #buys = best[:vector][0...(1440/TIMESTEP)]
    buys = best[:vector][0...(1440/TIMESTEP)].map.with_index{|m,time| df.call_amount_buy(time,m) }
@@ -528,9 +533,9 @@ class HomeAgent
    if cnt % 10 == 0
      filepath = "#{File.expand_path File.dirname __FILE__}/../result/#{@id}/result_#{cnt}.csv"
      file = open(filepath,'w')
-     file.write("buy,battery,predict,real,sell,weather,demand,optimum\n")
+     file.write("buy,battery,predict,real,sell,weather,demand,optimum,opt_battery\n")
      @simdatas.each {|data|
-       file.write "#{data[:buy]},#{data[:battery]},#{data[:predict]},#{data[:solar]},#{data[:sell]},#{data[:weather]},#{data[:demand]},#{data[:optimum_buy]}\n"
+       file.write "#{data[:buy]},#{data[:battery]},#{data[:predict]},#{data[:solar]},#{data[:sell]},#{data[:weather]},#{data[:demand]},#{data[:optimum_buy]},#{data[:opt_battery]}\n"
      }
      file.close
      @simdatas = []

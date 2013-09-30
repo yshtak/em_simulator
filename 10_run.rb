@@ -13,7 +13,7 @@ require "#{DIRROOT}/agents/10_power_company"
 include SimulationData
 PID_NUMBER= ARGV[0].nil? ? 0 : ARGV[0]
 AREA= ARGV[1].nil? ? "nagoya" : ARGV[1]
-pc_name = "pca"
+pc_name = "pca4"
 # 所属する家庭エージェント
 belonging_homes = (0...AGENT_NUM).map{|number| "#{AREA}_#{PID_NUMBER}_#{number}"}
 pca = PowerCompany.new({belonging_homes: belonging_homes, home_size: AGENT_NUM, id: pc_name})

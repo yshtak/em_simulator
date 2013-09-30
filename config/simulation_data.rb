@@ -4,8 +4,8 @@ module SimulationData
  RAINY=2 # 雨ID
  TEMP=100 # 学習データ一時退避配列のID
  TIMESTEP=15 # タイムステップ
- SIM_DAYS=100 # シミュレーション日数
- AGENT_NUM=3
+ SIM_DAYS=30 # シミュレーション日数
+ AGENT_NUM=1
  SUNNY_BORDER=12000.0 # 晴れのボーダー
  CLOUDY_BORDER=5500.0 # 曇のボーダー
  MIDNIGHT_INTERVAL=12
@@ -17,11 +17,11 @@ module SimulationData
  ### 
  MAX_TRANSMISSION=2000.0/(60/TIMESTEP) # 伝送電力量の制限(onestep毎の)
  ### Differentialevolutionのパラメータ設定
- MAX_GENS=100
+ MAX_GENS=1
  POP_SIZE_BASE=10
  WEIGHTF=0.8
  CROSSF=0.9
  ## 並列処理の設定
- THREAD=3 # スレッド数の決定
+ THREAD=1 # スレッド数の決定
  PROCESSES=4 # プロセス数
 end

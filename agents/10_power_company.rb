@@ -30,7 +30,7 @@ class PowerCompany
   attr_accessor :id, :trains
   def initialize cfg={}
     config = {
-      lpg: 18000.0,
+      lpg: 18000.0 * 3.0,
       timestep: 15,
       model_type: DYNAMIC_MODEL,
       id: 'pc_1',
@@ -95,6 +95,7 @@ class PowerCompany
      case pay
      when /^buy:.*?/ ## ホームエージェントが買う 
       value = pay.gsub(/^buy:/,"").to_f
+      ap "[PC]: 家庭が要求した電力は#{value}"
       @onestep_tpg = value # onestep用のpower generation
       sell_power value
       onedata[:buy] += value
@@ -113,8 +114,8 @@ class PowerCompany
 
    onedata[:purchase_price] = @purchase_price # 更新
    onedata[:sell_price] = @sell_price # 更新
-   print "sell_power:",(onedata[:sell]*1000).round/1000.0,"\t\tbuy_power:",(onedata[:buy]*1000).round/1000.0,"\t\tpurchase_price:",
-     (onedata[:purchase_price]*1000).round/1000.0,"\t\tsell_price:",(onedata[:sell_price]*1000).round/1000.0,"\n"
+   #print "sell_power:",(onedata[:sell]*1000).round/1000.0,"\t\tbuy_power:",(onedata[:buy]*1000).round/1000.0,"\t\tpurchase_price:",
+   #  (onedata[:purchase_price]*1000).round/1000.0,"\t\tsell_price:",(onedata[:sell_price]*1000).round/1000.0,"\n"
    @mails = [] # mailを空にする
    @output_data << onedata
    @trains[@weather] << onedata

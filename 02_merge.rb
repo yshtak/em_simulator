@@ -16,7 +16,7 @@ AREA=ARGV[1] # Area
 
 (0..AGENT_NUM-1).each do |agentid|
   CSV.open("./result/#{AREA}_#{NUMBER}_#{agentid}/merge.csv",'w') do |writer|
-   header = ["Buy","Battery","Predict","Real","Sell","Weather","Demand",'Optimum']
+   header = ["Buy","Battery","Predict","Real","Sell","Weather","Demand",'Optimum','OptBattery']
    col_size = header.size
    writer << header
    (0..sim_day/10-1).each{|num|

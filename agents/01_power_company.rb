@@ -30,7 +30,7 @@ class PowerCompany
   attr_accessor :id, :trains
   def initialize cfg={}
     config = {
-      lpg: 18000.0,
+      lpg: 18000.0 * 3,
       timestep: 15,
       model_type: DYNAMIC_MODEL,
       id: 'pc_1',
@@ -124,11 +124,11 @@ class PowerCompany
   # 
   # 
   def init_date
-   @tpg = 0.0
-   @tpp = 0.0
-   @sell_price = price_curve
-   @purchase_price = purchase_curve
-   refresh_trains
+    @tpg = 0.0
+    @tpp = 0.0
+    @sell_price = price_curve
+    @purchase_price = purchase_curve
+    refresh_trains
   end
 
   #
@@ -172,6 +172,7 @@ class PowerCompany
   # ホームエージェントから受け取るメッセージボックス
   def recieve_msg msg
     @mails << msg
+    ap msg
     if @mails.size == @home_size
       self.onestep_action @clock[:step] # step
       @clock[:step] += 1
@@ -189,7 +190,7 @@ class PowerCompany
   def ready_box
     @my_q.subscribe(:exclusive => true, :ack => true) do |delivery_info, properties, payload|
      self.recieve_msg "#{payload}"
-     #puts "Received #{payload}, message properties are #{properties.inspect}"
+     puts "Received #{payload}, message properties are #{properties.inspect}"
     end
   end
 
