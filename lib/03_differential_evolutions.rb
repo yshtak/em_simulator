@@ -91,42 +91,32 @@ module DifferentialEvolution
       vectors = []
       batteries = []
       (0...size).each do |i|
-        if size < (1440/@step)
+        if i < (1440/@step)
           diff = @max_strage - battery # 蓄電池の空き容量
           surplus = @solars[i] - @demands[i]
           #surplus = @solars[i] - @demands[i]
           # 蓄電池に空きがないのに余剰電力を蓄電しようとするのを阻止
           minmax[i][1] = battery
           minmax[i][1] = TRANSMISSION * 0.9 if minmax[i][1] > TRANSMISSION * 0.9 # 最大値更新
-          minmax[i][0] = diff * -1
-          minmax[i][0] = -1 * TRANSMISSION if minmax[i][0] < -1 *  TRANSMISSION
+          minmax[i][0] = diff * -1 # 蓄電
+          minmax[i][0] = -1 * TRANSMISSION if minmax[i][0].abs > TRANSMISSION
 
-          if surplus > 0.0 then # 余剰電力があるのに儲けるな
-            minmax[i][0] = 0.0
+          #if surplus > 0.0 then # 余剰電力があるのに儲けるな
+          #  minmax[i][0] = 0.0
+          #end
+          if surplus > 0.0
+            minmax[i][1] = 0.0 
           end
+          
           # 限界値を超えないようにする(放電量)
-          minmax[i][0] = -1 * battery if -1 * minmax[i][0] + battery > @max_strage
-          minmax[i][1] = battery if minmaxs[i][1] > battery 
+          discharge = minmax[i][0] + ((minmax[i][1] - minmax[i][0]) * rand()) # チャージ量(蓄電池に蓄電する量)
+          batteries << battery # バッテリ情報記憶
+          battery -= discharge # バッテリーの更新
+          vectors << discharge
+        else
+          value = minmax[i][0] + ((minmax[i][1] - minmax[i][0]) * rand()) # チャージ量(蓄電池に蓄電する量)
+          vectors << value
         end
-        if battery < 0.0
-          ap "-----"
-          ap battery
-          ap minmax[i][0]
-          ap minmax[i][1]
-          ap "----------"
-        end
-        #minmax[i][0] = 0.0
-        #minmax[i][1] = 100.0
-
-        # value(B+)の計算(random)
-        #value = 200.0 + ((minmax[i][1] - minmax[i][0]) * rand()) # チャージ量(蓄電池に蓄電する量)
-        value = minmax[i][0] + ((minmax[i][1] - minmax[i][0]) * rand()) # チャージ量(蓄電池に蓄電する量)
-        #buy = @demands[i] - @solars[i] - value
-
-        vectors << value
-        batteries << battery
-        battery -= value # バッテリーの更新
-        #battery += value - @demands[i] + @solars[i] # バッテリーの更新
       end
       #ap minmax
       {vector: vectors, battery: batteries, search_space: minmax}
