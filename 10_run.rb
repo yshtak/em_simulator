@@ -152,7 +152,7 @@ for count in 1..sim_day do
    id = "#{AREA}_#{PID_NUMBER}_#{index}"
    Celluloid::Actor[id].init_date
   }# 初期化
-  Celluloid::Actor[pca.id].csv_out("./result/pca_#{count}.csv") if count % 10 == 0
+  #Celluloid::Actor[pca.id].csv_out("./result/pca_#{count}.csv") if count % 10 == 0
   Celluloid::Actor[pca.id].init_date # 初期化
 end
    #bats.each{|bat| battery_output.write("#{bat}\n") }

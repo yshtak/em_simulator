@@ -215,6 +215,7 @@ class HomeAgent
      #end
      ### 
      simdata[:opt_battery] = @day_batteries[cnt]
+=begin
      est_diff = @day_batteries[cnt] - @day_batteries[pre_cnt]
      real_diff = @battery - @pre_battery
      if est_diff > 0 and real_diff > 0 and est_diff > real_diff # 電力多く売ってる可能性
@@ -236,7 +237,7 @@ class HomeAgent
        #ap simdata
        #simdata[:buy] = 0.0
      end
-     
+=end     
      ## 逐次戦略終了 
      simdata[:sell] = MAX_TRANSMISSION if simdata[:sell] > MAX_TRANSMISSION
      simdata[:sell] = @battery if simdata[:sell] > @battery
@@ -248,7 +249,7 @@ class HomeAgent
      simdata[:predict] = next_solar 
      simdata[:battery] = @battery
      ##### 電力事業所にメッセージング
-     ap "[HOME]: 家庭が購入する#{simdata[:buy]}"
+     #ap "[HOME]: 家庭が購入する#{simdata[:buy]}"
      send_message "id:#{@id},buy:#{simdata[:buy]},sell:#{simdata[:sell]}" 
    when SECOND_STRATEGY
 
@@ -282,13 +283,13 @@ class HomeAgent
  ##
  # 一日の最適化問題を解くメソッド
  def optimum_oneday
-   demands = self.smooth_demand_train_data
-   solars = self.smooth_solar_train_data
+   demands = self.smooth_train_datum :demands
+   solars = self.smooth_train_datum :solars
    #buys = self.smooth_buy_train_data
    #sells = self.smooth_sell_train_data 
-   purchase_prices = self.smooth_p_purchase_price
+   purchase_prices = self.smooth_train_datum :p_purchase_price
    #buy_prices = self.smooth_trains_datum :p_buy_price
-   sell_prices = self.smooth_p_sell_price
+   sell_prices = self.smooth_train_datum :p_sell_price
    #battery = self.smooth_battery_train_data
    # DifferentialEvolution用の初期パラメータ設定
    params = {
@@ -318,14 +319,8 @@ class HomeAgent
    return [buys, batteries]
  end
 
- #####################################################################
- 
- # 時間をすすめる
- def next_time time
-  #@clock += 1
- end
-
- # 1日の初期化
+ #= 1日の初期化
+ #
  def init_date
   #@clock = 0
   self.csv_out
@@ -340,8 +335,7 @@ class HomeAgent
   #@filter.init_data if !@filter.nil? && !@filter.eql?("normal")
  end
 
- ## 
- # 学習データの平均的データを取得
+ #=学習データの平均的データを取得
  # tag: ハッシュタグ
  def smooth_train_datum tag
    trains = @trains[tag][@weather]
@@ -359,134 +353,7 @@ class HomeAgent
    return results
  end
 
- ##
- # 需要の学習データから平均的な一日の需要データを取得
- def smooth_demand_train_data
-   demand_trains = @trains[:demands][@weather]
-   chunk = demand_trains.size/(1440/TIMESTEP)
-   result = Array.new((1440/TIMESTEP),0.0)
-   return result if chunk==0
-   (0..(1440/TIMESTEP-1)).each do |cnt|
-     sum = 0.0
-     for i in 0..chunk-1
-       index = i * (1440/TIMESTEP)
-       sum += demand_trains[cnt+index]
-     end
-     result[cnt] = (sum / chunk.to_f)
-   end
-   return result
- end
-
- ##
- # 発電量の学習データから平均的な一日の需要データを取得
- def smooth_solar_train_data
-   solar_trains = @trains[:solars][@weather]
-   chunk = solar_trains.size/(1440/TIMESTEP)
-   result = Array.new(1440/TIMESTEP,0.0)
-   return result if chunk==0
-   (0..(1440/TIMESTEP-1)).each do |cnt|
-     sum = 0.0
-     for i in 0..chunk-1
-       index = i * (1440/TIMESTEP)
-       sum += solar_trains[cnt+index]
-     end
-     result[cnt] = (sum / chunk.to_f)
-   end
-   return result
- end
-
- ###
- #
- def smooth_buy_train_data
-   trains = @trains[:buys][@weather]
-   chunk = trains.size/(1440/TIMESTEP)
-   result = Array.new(1440/TIMESTEP,0.0)
-   return result if chunk==0
-   (0..(1440/TIMESTEP-1)).each do |cnt|
-     sum = 0.0
-     for i in 0..chunk-1
-       index = i * (1440/TIMESTEP)
-       sum += trains[cnt+index]
-     end
-     result[cnt] = (sum / chunk.to_f)
-   end
-   return result
- end
-
- ###
- #
- def smooth_sell_train_data
-   sells = @trains[:sells][@weather]
-   chunk = sells.size/(1440/TIMESTEP)
-   result = Array.new(1440/TIMESTEP,0.0)
-   return result if chunk==0
-   (0..(1440/TIMESTEP-1)).each do |cnt|
-     sum = 0.0
-     for i in 0..chunk-1
-       index = i * (1440/TIMESTEP)
-       sum += sells[cnt+index]
-     end
-     result[cnt] = (sum / chunk.to_f)
-   end
-   return result
- end
-
- ###
- #
- def smooth_p_purchase_price
-   trains = @trains[:p_purchase_price][@weather]
-   chunk = trains.size/(1440/TIMESTEP)
-   result = Array.new(1440/TIMESTEP,0.0)
-   return result if chunk==0
-   (0..(1440/TIMESTEP-1)).each do |cnt|
-     sum = 0.0
-     for i in 0..chunk-1
-       index = i * (1440/TIMESTEP)
-       sum += trains[cnt+index]
-     end
-     result[cnt] = (sum / chunk.to_f)
-   end
-   return result
-
- end
-
- ##
- #
- def smooth_p_sell_price
-   trains = @trains[:p_sell_price][@weather]
-   chunk = trains.size/(1440/TIMESTEP)
-   result = Array.new(1440/TIMESTEP,0.0)
-   return result if chunk==0
-   (0..(1440/TIMESTEP-1)).each do |cnt|
-     sum = 0.0
-     for i in 0..chunk-1
-       index = i * (1440/TIMESTEP)
-       sum += trains[cnt+index]
-     end
-     result[cnt] = (sum / chunk.to_f)
-   end
-   return result
- end
-
- def smooth_battery_train_data
-   trains = @trains[:battery][@weather]
-   chunk = trains.size/(1440/TIMESTEP)
-   result = Array.new(1440/TIMESTEP,0.0)
-   return result if chunk==0
-   (0..(1440/TIMESTEP-1)).each do |cnt|
-     sum = 0.0
-     for i in 0..chunk-1
-       index = i * (1440/TIMESTEP)
-       sum += trains[cnt+index]
-     end
-     result[cnt] = (sum / chunk.to_f)
-   end
-   return result
- end
- 
- 
- #####
- # 天気予報のチェック
+ #=天気予報のチェック
  #  ある１位日の総発電量から天候をセットする
  #  - sum_solar: ある一日の総発電量 
  def switch_weather_for_pf sum_solar
@@ -502,8 +369,7 @@ class HomeAgent
   #### select_time_and_value_to_buy # 夜間におよその購入量と蓄電量を概算する 
  end
 
- ###
- # recieve_msg
+ #=recieve_msg
  # @msg: メッセージ
  def recieve_msg msg
    ds = msg.split(",")
@@ -526,11 +392,11 @@ class HomeAgent
    @oneday_sells[@clock[:step]] = sell
  end
 
- ## 
+ #=データの保存
  # 10日周期で保存
  def csv_out
-   cnt = @clock[:day] + 1
-   if cnt % 10 == 0
+   cnt = @clock[:day] 
+   if cnt % 10 == 0 && cnt > 0
      filepath = "#{File.expand_path File.dirname __FILE__}/../result/#{@id}/result_#{cnt}.csv"
      file = open(filepath,'w')
      file.write("buy,battery,predict,real,sell,weather,demand,optimum,opt_battery\n")
@@ -538,6 +404,7 @@ class HomeAgent
        file.write "#{data[:buy]},#{data[:battery]},#{data[:predict]},#{data[:solar]},#{data[:sell]},#{data[:weather]},#{data[:demand]},#{data[:optimum_buy]},#{data[:opt_battery]}\n"
      }
      file.close
+     #ap @simdatas
      @simdatas = []
    end
  end

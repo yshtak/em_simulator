@@ -86,7 +86,6 @@ class PowerCompany
    mt = @max_trade # 最大取引量
    onedata = {buy: 0.0, sell: 0.0, purchase_price: pp , sell_price: sp}
    ## メッセージの解凍
-   #ap @mails
    @mails.each do |msg|
     ds = msg.split(",")
     reply_to = ds[0].gsub("id:","") # 先頭は必ずエージェントIDが送られてくる
@@ -95,7 +94,6 @@ class PowerCompany
      case pay
      when /^buy:.*?/ ## ホームエージェントが買う 
       value = pay.gsub(/^buy:/,"").to_f
-      ap "[PC]: 家庭が要求した電力は#{value}"
       @onestep_tpg = value # onestep用のpower generation
       sell_power value
       onedata[:buy] += value
@@ -125,11 +123,12 @@ class PowerCompany
   # 
   # 
   def init_date
-   @tpg = 0.0
-   @tpp = 0.0
-   @sell_price = price_curve
-   @purchase_price = purchase_curve
-   refresh_trains
+    self.csv_out # 10始まりに
+    @tpg = 0.0
+    @tpp = 0.0
+    @sell_price = price_curve
+    @purchase_price = purchase_curve
+    refresh_trains
   end
 
   #
@@ -198,13 +197,18 @@ class PowerCompany
 
   ###
   # save
-  def csv_out path="test.csv"
-    file = open(path,'w')
-    file.write "sell,buy,pruchase_price,sell_price\n"
-    @output_data.each do |onedata|
-      file.write "#{onedata[:sell]},#{onedata[:buy]},#{onedata[:purchase_price]},#{onedata[:sell_price]}\n"
+  def csv_out
+    cnt = @clock[:day]
+    path = File.expand_path(File.dirname __FILE__) + "/../result/#{@id}_#{cnt}.csv"
+    if cnt % 10 == 0 && cnt > 0
+      file = open(path,'w')
+      file.write "sell,buy,pruchase_price,sell_price\n"
+      ap @output_data
+      @output_data.each do |onedata|
+        file.write "#{onedata[:sell]},#{onedata[:buy]},#{onedata[:purchase_price]},#{onedata[:sell_price]}\n"
+      end
+      @output_data = []
     end
-    @output_data = []
   end
 
   ## 天気の設定

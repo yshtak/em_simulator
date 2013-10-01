@@ -104,6 +104,16 @@ module DifferentialEvolution
           if surplus > 0.0 then # 余剰電力があるのに儲けるな
             minmax[i][0] = 0.0
           end
+          # 限界値を超えないようにする(放電量)
+          minmax[i][0] = -1 * battery if -1 * minmax[i][0] + battery > @max_strage
+          minmax[i][1] = battery if minmaxs[i][1] > battery 
+        end
+        if battery < 0.0
+          ap "-----"
+          ap battery
+          ap minmax[i][0]
+          ap minmax[i][1]
+          ap "----------"
         end
         #minmax[i][0] = 0.0
         #minmax[i][1] = 100.0
@@ -166,7 +176,6 @@ module DifferentialEvolution
       pop.each{|c| c[:cost],c[:sum] = objective_function(c[:vector])}
       best = pop.sort{|x,y| x[:cost] <=> y[:cost]}.first
       minmaxs = pop.map{|x| x[:search_space]}
-      batteries = best[:battery]
       max_gens.times do |gen|
         children = create_children(pop, minmaxs, f, cr)
         children.each{|c| c[:cost], c[:sum] = objective_function(c[:vector])}
@@ -178,10 +187,8 @@ module DifferentialEvolution
       end
       best[:battery] = return_batteries best[:vector],@battery
       best[:sum] = sum_check best[:vector][0...(1440/@step)]
-      #p best[:battery]
-      #p "-------------------"
       best[:vector] = best[:vector][0...(1440/@step)]
-      #p best[:vector]
+
       return best
     end
 
